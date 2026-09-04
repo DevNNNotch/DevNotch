@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+devnotch_die() {
+  printf 'Error: %s\n' "$*" >&2
+  exit 1
+}
+
+devnotch_require_macos() {
+  local required_major="$1"
+  local installed_version
+  local installed_major
+
+  [[ "$(uname -s)" == "Darwin" ]] || devnotch_die "DevNotch can only be built on macOS"
+  installed_version="$(sw_vers -productVersion)"
+  installed_major="${installed_version%%.*}"
+  [[ "$installed_major" =~ ^[0-9]+$ ]] || devnotch_die "Unable to parse macOS version: $installed_version"
+  (( installed_major >= required_major )) || devnotch_die "macOS $required_major or newer is required; found $installed_version"
+}
+
+devnotch_require_xcode() {
+  local required_major="$1"
+  local required_minor="$2"
+  local developer_directory
+  local installed_version
+  local installed_major
+  local installed_minor
+
+  developer_directory="$(xcode-select -p 2>/dev/null || true)"
+  [[ "$developer_directory" == *.app/Contents/Developer ]] || devnotch_die "Full Xcode $required_major.$required_minor or newer is required. Install Xcode, then run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer"
+  installed_version="$(xcodebuild -version 2>/dev/null | awk 'NR == 1 && $1 == "Xcode" { print $2 }')"
+  [[ -n "$installed_version" ]] || devnotch_die "Unable to read the selected Xcode version from: $developer_directory"
+  installed_major="${installed_version%%.*}"
+  installed_minor="${installed_version#*.}"
+  installed_minor="${installed_minor%%.*}"
+  [[ "$installed_major" =~ ^[0-9]+$ && "$installed_minor" =~ ^[0-9]+$ ]] || devnotch_die "Unable to parse Xcode version: $installed_version"
+  if (( installed_major < required_major || (installed_major == required_major && installed_minor < required_minor) )); then
+    devnotch_die "Xcode $required_major.$required_minor or newer is required; found $installed_version"
+  fi
+}

@@ -34,6 +34,19 @@ jobs:
           plutil -lint boringNotch/Info.plist
           plutil -lint boringNotch/boringNotch.entitlements
       - name: Verify packaging
-        run: scripts/verify-packaging
+        run: |
+          bash -n \
+            Configuration/dmg/create_dmg.sh \
+            scripts/build-local \
+            scripts/build-release \
+            scripts/devnotch-event \
+            scripts/notarize-release \
+            scripts/render-homebrew-cask \
+            scripts/smoke-local-api \
+            scripts/validate-version \
+            scripts/verify-packaging \
+            scripts/lib/macos-toolchain
+          zsh -n scripts/generate-app-icon
+          scripts/verify-packaging
       - name: Check whitespace
         run: git diff --check

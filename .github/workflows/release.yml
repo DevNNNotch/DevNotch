@@ -15,12 +15,12 @@ concurrency:
 jobs:
   release:
     runs-on: macos-15
+    environment: release
     env:
       DEVNOTCH_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
       DEVNOTCH_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
       DEVNOTCH_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
       DEVNOTCH_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
-      DEVNOTCH_NOTARY_KEY_PATH: ${{ runner.temp }}/AuthKey.p8
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -39,11 +39,19 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          if [[ ! "$RELEASE_TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?)$ ]]; then
-            echo "::error::Release tag must be v followed by a semantic version: $RELEASE_TAG"
+          VERSION="${RELEASE_TAG#v}"
+          [[ "$RELEASE_TAG" == "v$VERSION" && "$RELEASE_TAG" != "$VERSION" ]] || { echo "::error::Release tag must start with v: $RELEASE_TAG"; exit 1; }
+          scripts/validate-version "$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Require a commit from main
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Release tags must point to a commit contained in main"
             exit 1
           fi
-          echo "version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
 
       - name: Validate required secrets
         env:
@@ -87,8 +95,10 @@ jobs:
           NOTARY_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_NOTARY_PRIVATE_KEY_BASE64 }}
         run: |
           set -euo pipefail
-          printf '%s' "$NOTARY_PRIVATE_KEY_BASE64" | base64 --decode > "$DEVNOTCH_NOTARY_KEY_PATH"
-          chmod 600 "$DEVNOTCH_NOTARY_KEY_PATH"
+          NOTARY_KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s' "$NOTARY_PRIVATE_KEY_BASE64" | base64 --decode > "$NOTARY_KEY_PATH"
+          chmod 600 "$NOTARY_KEY_PATH"
+          echo "DEVNOTCH_NOTARY_KEY_PATH=$NOTARY_KEY_PATH" >> "$GITHUB_ENV"
 
       - name: Build and sign
         env:

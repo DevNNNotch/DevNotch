@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+die() {
+  printf 'Error: %s\n' "$*" >&2
+  exit 1
+}
+
+STABLE_ONLY=false
+if [[ "${1:-}" == "--stable" ]]; then
+  STABLE_ONLY=true
+  shift
+fi
+[[ $# -eq 1 ]] || die "Usage: $0 [--stable] <semantic-version>"
+
+VERSION="$1"
+if [[ ! "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$ ]]; then
+  die "Invalid semantic version: $VERSION"
+fi
+
+PRERELEASE="${BASH_REMATCH[5]:-}"
+if [[ -n "$PRERELEASE" ]]; then
+  [[ "$STABLE_ONLY" == false ]] || die "Stable version required; pre-release identifiers are not allowed: $VERSION"
+  IFS='.' read -r -a IDENTIFIERS <<< "$PRERELEASE"
+  for identifier in "${IDENTIFIERS[@]}"; do
+    if [[ "$identifier" =~ ^[0-9]+$ && "$identifier" != "0" && "$identifier" == 0* ]]; then
+      die "Numeric pre-release identifiers must not contain leading zeroes: $VERSION"
+    fi
+  done
+fi
+
+printf '%s\n' "$VERSION"

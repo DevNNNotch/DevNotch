@@ -34,6 +34,8 @@ Configure these Actions secrets in the application repository:
 | `APPLE_NOTARY_PRIVATE_KEY_BASE64` | Base64-encoded `.p8` file |
 | `HOMEBREW_TAP_TOKEN` | Fine-grained token with Contents write access only to `homebrew-devnotch` |
 
+Create a GitHub environment named `release`, restrict it to protected release tags, and require a maintainer review before exposing these secrets. The workflow rejects tags whose commit is not contained in `main`.
+
 Encode binary secret files without line wrapping:
 
 ```sh

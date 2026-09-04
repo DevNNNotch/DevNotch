@@ -10,7 +10,7 @@ cask "devnotch" do
   desc "Developer workspace for AI usage, local agents, builds, logs, and system status"
   homepage "https://github.com/__REPOSITORY__"
 
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   app "DevNotch.app"
 

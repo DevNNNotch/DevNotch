@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-die() {
-  printf 'Error: %s\n' "$*" >&2
-  exit 1
-}
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+source "$PROJECT_ROOT/scripts/lib/macos-toolchain"
 
 usage() {
   cat <<'USAGE'
@@ -21,7 +19,7 @@ INSTALL=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --configuration)
-      [[ $# -ge 2 ]] || die "--configuration requires Debug or Release"
+      [[ $# -ge 2 ]] || devnotch_die "--configuration requires Debug or Release"
       CONFIGURATION="$2"
       shift 2
       ;;
@@ -34,17 +32,14 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     *)
-      die "Unknown argument: $1"
+      devnotch_die "Unknown argument: $1"
       ;;
   esac
 done
 
-[[ "$CONFIGURATION" == "Debug" || "$CONFIGURATION" == "Release" ]] || die "Configuration must be Debug or Release"
-
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-SELECTED_DEVELOPER_DIRECTORY="$(xcode-select -p 2>/dev/null || true)"
-[[ "$SELECTED_DEVELOPER_DIRECTORY" == *Xcode.app/Contents/Developer ]] || die "Full Xcode 16.4 or newer is required. Install Xcode, then run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer"
-xcodebuild -version >/dev/null 2>&1 || die "xcodebuild is unavailable from the selected Xcode toolchain"
+[[ "$CONFIGURATION" == "Debug" || "$CONFIGURATION" == "Release" ]] || devnotch_die "Configuration must be Debug or Release"
+devnotch_require_macos 14
+devnotch_require_xcode 16 4
 
 DERIVED_DATA="$PROJECT_ROOT/.build/xcode"
 xcodebuild \
@@ -59,15 +54,15 @@ xcodebuild \
   build
 
 APP_PATH="$DERIVED_DATA/Build/Products/$CONFIGURATION/DevNotch.app"
-[[ -d "$APP_PATH" ]] || die "Build succeeded but the expected app was not found: $APP_PATH"
-[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Contents/Info.plist")" == "dev.devnotch.app" ]] || die "Built app has an unexpected bundle identifier"
-codesign --verify --deep --strict "$APP_PATH" || die "Ad-hoc signature verification failed: $APP_PATH"
+[[ -d "$APP_PATH" ]] || devnotch_die "Build succeeded but the expected app was not found: $APP_PATH"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Contents/Info.plist")" == "dev.devnotch.app" ]] || devnotch_die "Built app has an unexpected bundle identifier"
+codesign --verify --deep --strict "$APP_PATH" || devnotch_die "Ad-hoc signature verification failed: $APP_PATH"
 
 if [[ "$INSTALL" == true ]]; then
   INSTALL_PATH="/Applications/DevNotch.app"
-  [[ ! -e "$INSTALL_PATH" ]] || die "Refusing to overwrite $INSTALL_PATH. Remove the existing app explicitly, then rerun this command."
+  [[ ! -e "$INSTALL_PATH" ]] || devnotch_die "Refusing to overwrite $INSTALL_PATH. Remove the existing app explicitly, then rerun this command."
   ditto "$APP_PATH" "$INSTALL_PATH"
-  codesign --verify --deep --strict "$INSTALL_PATH" || die "Installed app signature verification failed: $INSTALL_PATH"
+  codesign --verify --deep --strict "$INSTALL_PATH" || devnotch_die "Installed app signature verification failed: $INSTALL_PATH"
   printf 'Installed %s\n' "$INSTALL_PATH"
 else
   printf 'Built %s\n' "$APP_PATH"

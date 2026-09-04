@@ -19,6 +19,18 @@ cleanup() {
 }
 trap cleanup EXIT
 
+for valid_version in 0.1.0 1.0.0-beta.1 12.34.56-rc-2; do
+  "$PROJECT_ROOT/scripts/validate-version" "$valid_version" >/dev/null
+done
+for invalid_version in v1.0.0 01.0.0 1.0 1.0.0. 1.0.0-01 1.0.0+build; do
+  if "$PROJECT_ROOT/scripts/validate-version" "$invalid_version" >/dev/null 2>&1; then
+    die "Invalid semantic version was accepted: $invalid_version"
+  fi
+done
+if "$PROJECT_ROOT/scripts/validate-version" --stable 1.0.0-beta.1 >/dev/null 2>&1; then
+  die "Pre-release version was accepted as stable"
+fi
+
 APP_PATH="$FIXTURE_ROOT/DevNotch.app"
 mkdir -p "$APP_PATH/Contents/MacOS"
 cp /usr/bin/true "$APP_PATH/Contents/MacOS/DevNotch"

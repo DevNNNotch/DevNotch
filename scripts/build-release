@@ -1,34 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-die() {
-  printf 'Error: %s\n' "$*" >&2
-  exit 1
-}
-
 if [[ $# -ne 2 ]]; then
-  die "Usage: $0 <version> <build-number>"
+  printf 'Error: Usage: %s <version> <build-number>\n' "$0" >&2
+  exit 1
 fi
 
 VERSION="$1"
 BUILD_NUMBER="$2"
-[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]] || die "Version must be a semantic version without a leading v: $VERSION"
-[[ "$BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]] || die "Build number must be a positive integer: $BUILD_NUMBER"
-
-[[ -n "${DEVNOTCH_DEVELOPMENT_TEAM:-}" ]] || die "Set DEVNOTCH_DEVELOPMENT_TEAM to the Apple Developer Team ID"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+source "$PROJECT_ROOT/scripts/lib/macos-toolchain"
+"$PROJECT_ROOT/scripts/validate-version" "$VERSION" >/dev/null
+[[ "$BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]] || devnotch_die "Build number must be a positive integer: $BUILD_NUMBER"
+[[ -n "${DEVNOTCH_DEVELOPMENT_TEAM:-}" ]] || devnotch_die "Set DEVNOTCH_DEVELOPMENT_TEAM to the Apple Developer Team ID"
 DEVELOPMENT_TEAM="$DEVNOTCH_DEVELOPMENT_TEAM"
 SIGNING_IDENTITY="${DEVNOTCH_SIGNING_IDENTITY:-Developer ID Application}"
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-SELECTED_DEVELOPER_DIRECTORY="$(xcode-select -p 2>/dev/null || true)"
-[[ "$SELECTED_DEVELOPER_DIRECTORY" == *Xcode.app/Contents/Developer ]] || die "Full Xcode 16.4 or newer is required. Select it with xcode-select before releasing."
-security find-identity -v -p codesigning | grep -F "$SIGNING_IDENTITY" >/dev/null || die "Signing identity not found in the active keychain: $SIGNING_IDENTITY"
+devnotch_require_macos 14
+devnotch_require_xcode 16 4
+security find-identity -v -p codesigning | grep -F "$SIGNING_IDENTITY" >/dev/null || devnotch_die "Signing identity not found in the active keychain: $SIGNING_IDENTITY"
 
 DIST_DIRECTORY="$PROJECT_ROOT/dist"
 ARCHIVE_PATH="$DIST_DIRECTORY/DevNotch.xcarchive"
 APP_PATH="$DIST_DIRECTORY/DevNotch.app"
 DMG_PATH="$DIST_DIRECTORY/DevNotch-$VERSION.dmg"
 
-[[ ! -e "$ARCHIVE_PATH" && ! -e "$APP_PATH" && ! -e "$DMG_PATH" ]] || die "Release output already exists in $DIST_DIRECTORY. Move or remove it explicitly before retrying."
+[[ ! -e "$ARCHIVE_PATH" && ! -e "$APP_PATH" && ! -e "$DMG_PATH" ]] || devnotch_die "Release output already exists in $DIST_DIRECTORY. Move or remove it explicitly before retrying."
 mkdir -p "$DIST_DIRECTORY"
 
 xcodebuild clean archive \
@@ -46,17 +42,17 @@ xcodebuild clean archive \
   archive
 
 ARCHIVED_APP="$ARCHIVE_PATH/Products/Applications/DevNotch.app"
-[[ -d "$ARCHIVED_APP" ]] || die "Archive does not contain the expected application: $ARCHIVED_APP"
+[[ -d "$ARCHIVED_APP" ]] || devnotch_die "Archive does not contain the expected application: $ARCHIVED_APP"
 ditto "$ARCHIVED_APP" "$APP_PATH"
 
 INFO_PLIST="$APP_PATH/Contents/Info.plist"
-[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO_PLIST")" == "dev.devnotch.app" ]] || die "Release bundle identifier is not dev.devnotch.app"
-[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")" == "$VERSION" ]] || die "Release bundle version does not match $VERSION"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO_PLIST")" == "dev.devnotch.app" ]] || devnotch_die "Release bundle identifier is not dev.devnotch.app"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")" == "$VERSION" ]] || devnotch_die "Release bundle version does not match $VERSION"
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 SIGNATURE_DETAILS="$(codesign --display --verbose=4 "$APP_PATH" 2>&1)"
-grep -F "Authority=$SIGNING_IDENTITY" <<< "$SIGNATURE_DETAILS" >/dev/null || die "App was not signed by the requested Developer ID identity"
-grep -E '^Timestamp=' <<< "$SIGNATURE_DETAILS" >/dev/null || die "App signature does not contain a trusted timestamp"
-grep -E '^CodeDirectory .*flags=.*runtime' <<< "$SIGNATURE_DETAILS" >/dev/null || die "App signature does not enable the hardened runtime"
+grep -F "Authority=$SIGNING_IDENTITY" <<< "$SIGNATURE_DETAILS" >/dev/null || devnotch_die "App was not signed by the requested Developer ID identity"
+grep -E '^Timestamp=' <<< "$SIGNATURE_DETAILS" >/dev/null || devnotch_die "App signature does not contain a trusted timestamp"
+grep -E '^CodeDirectory .*flags=.*runtime' <<< "$SIGNATURE_DETAILS" >/dev/null || devnotch_die "App signature does not enable the hardened runtime"
 
 "$PROJECT_ROOT/Configuration/dmg/create_dmg.sh" "$APP_PATH" "$DMG_PATH" "DevNotch $VERSION"
 codesign --force --timestamp --sign "$SIGNING_IDENTITY" "$DMG_PATH"
