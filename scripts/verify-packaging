@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+die() {
+  printf 'Error: %s\n' "$*" >&2
+  exit 1
+}
+
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+FIXTURE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/devnotch-packaging.XXXXXX")"
+MOUNT_POINT="$FIXTURE_ROOT/mount"
+ATTACHED=false
+
+cleanup() {
+  if [[ "$ATTACHED" == true ]]; then
+    hdiutil detach "$MOUNT_POINT" -quiet || true
+  fi
+  rm -rf "$FIXTURE_ROOT"
+}
+trap cleanup EXIT
+
+APP_PATH="$FIXTURE_ROOT/DevNotch.app"
+mkdir -p "$APP_PATH/Contents/MacOS"
+cp /usr/bin/true "$APP_PATH/Contents/MacOS/DevNotch"
+chmod +x "$APP_PATH/Contents/MacOS/DevNotch"
+cat > "$APP_PATH/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleExecutable</key><string>DevNotch</string>
+<key>CFBundleIdentifier</key><string>dev.devnotch.packaging-fixture</string>
+<key>CFBundleName</key><string>DevNotch</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+</dict></plist>
+PLIST
+
+DMG_PATH="$FIXTURE_ROOT/DevNotch-0.0.0.dmg"
+"$PROJECT_ROOT/Configuration/dmg/create_dmg.sh" "$APP_PATH" "$DMG_PATH" "DevNotch Packaging Test"
+mkdir -p "$MOUNT_POINT"
+hdiutil attach "$DMG_PATH" -mountpoint "$MOUNT_POINT" -nobrowse -readonly -quiet
+ATTACHED=true
+[[ -d "$MOUNT_POINT/DevNotch.app" ]] || die "DMG does not contain DevNotch.app"
+[[ -L "$MOUNT_POINT/Applications" ]] || die "DMG does not contain the Applications shortcut"
+hdiutil detach "$MOUNT_POINT" -quiet
+ATTACHED=false
+
+CASK_PATH="$FIXTURE_ROOT/devnotch.rb"
+"$PROJECT_ROOT/scripts/render-homebrew-cask" \
+  1.2.3 \
+  aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+  DevNotch/DevNotch \
+  "$CASK_PATH"
+ruby -c "$CASK_PATH" >/dev/null
+grep -F 'DevNotch-#{version}.dmg' "$CASK_PATH" >/dev/null || die "Rendered Cask has an unexpected asset name"
+if command -v brew >/dev/null 2>&1; then
+  brew style "$CASK_PATH"
+fi
+
+printf 'Packaging verification passed.\n'

@@ -1,0 +1,24 @@
+# typed: strict
+# frozen_string_literal: true
+
+cask "devnotch" do
+  version "__VERSION__"
+  sha256 "__SHA256__"
+
+  url "https://github.com/__REPOSITORY__/releases/download/v#{version}/DevNotch-#{version}.dmg"
+  name "DevNotch"
+  desc "Developer workspace for AI usage, local agents, builds, logs, and system status"
+  homepage "https://github.com/__REPOSITORY__"
+
+  depends_on macos: ">= :sonoma"
+
+  app "DevNotch.app"
+
+  uninstall quit: "dev.devnotch.app"
+
+  zap trash: [
+    "~/Library/Application Support/DevNotch",
+    "~/Library/Containers/dev.devnotch.app",
+    "~/Library/Preferences/dev.devnotch.app.plist",
+  ]
+end

@@ -33,5 +33,7 @@ jobs:
           plutil -lint boringNotch.xcodeproj/project.pbxproj
           plutil -lint boringNotch/Info.plist
           plutil -lint boringNotch/boringNotch.entitlements
+      - name: Verify packaging
+        run: scripts/verify-packaging
       - name: Check whitespace
         run: git diff --check

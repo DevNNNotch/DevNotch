@@ -70,7 +70,37 @@ flowchart LR
     OL --> UI
 ```
 
-## Build from source
+## Install
+
+No signed public build has been published yet. The Homebrew and DMG commands below become active with the first notarized GitHub release; until then, build from source with full Xcode.
+
+### Homebrew
+
+```sh
+brew install --cask DevNotch/devnotch/devnotch
+```
+
+Homebrew verifies the release SHA-256 before installing `DevNotch.app`. Upgrade and uninstall with:
+
+```sh
+brew upgrade --cask devnotch
+brew uninstall --cask devnotch
+```
+
+### Signed DMG
+
+Download `DevNotch-<version>.dmg` and `SHA256SUMS` from the matching GitHub release. Verify the download before opening it:
+
+```sh
+shasum -a 256 -c SHA256SUMS
+open DevNotch-<version>.dmg
+```
+
+Drag `DevNotch.app` to Applications. Every published DMG must be Developer ID signed, Apple-notarized, stapled, and accepted by Gatekeeper; the release workflow stops if any of those checks fail.
+
+Maintainers should follow [the release runbook](docs/RELEASING.md); release credentials never belong in the repository.
+
+### Build from source
 
 The selected upstream baseline currently requires:
 
@@ -81,14 +111,13 @@ The selected upstream baseline currently requires:
 ```sh
 git clone https://github.com/DevNotch/DevNotch.git
 cd DevNotch
-swift build
-swift test
-open boringNotch.xcodeproj
+make test
+make install
 ```
 
-Open the project, select the `boringNotch` scheme, and run the application. The application and XPC service use DevNotch bundle identifiers; internal target names remain inherited until a full Xcode signing migration can be verified.
+`make install` builds an ad-hoc signed Release app and copies it to `/Applications/DevNotch.app`. It refuses to overwrite an existing installation. The source build is intended for contributors; it does not replace the notarized release.
 
-Homebrew installation and manual release downloads are planned only after a signed release pipeline exists. There is currently no valid DevNotch install command or downloadable binary.
+To run from Xcode instead, open `boringNotch.xcodeproj`, select the inherited `boringNotch` scheme, and run. The produced app and embedded XPC service use DevNotch bundle identifiers.
 
 ## Configure Ollama
 
@@ -183,7 +212,7 @@ boringNotch/DevNotch/
 
 ## Community
 
-The planned DevNotch GitHub Organization will host the application, integration documentation, Discussions, and future adapters that contain real maintained code. Empty SDK or plugin repositories will not be created for appearance.
+The planned DevNotch GitHub Organization will host the application, the `homebrew-devnotch` tap, integration documentation, Discussions, and future adapters that contain real maintained code. Empty SDK or plugin repositories will not be created for appearance.
 
 - Use Discussions for questions, ideas, and integration proposals.
 - Use the integration issue form for a new provider data source.

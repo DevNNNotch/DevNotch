@@ -1,110 +1,49 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Minimal wrapper to create a DMG using dmgbuild.
-# Usage: ./create_dmg.sh <app_path> <dmg_output> <volume_name>
-
-APP_PATH="${1:?App path required}"
-DMG_OUTPUT="${2:?DMG output path required}"
-VOLUME_NAME="${3:?Volume name required}"
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SETTINGS="$SCRIPT_DIR/dmgbuild_settings.py"
-
-BACKGROUND_DIR="$SCRIPT_DIR/.background"
-
 die() {
-  echo "Error: $*" >&2
+  printf 'Error: %s\n' "$*" >&2
   exit 1
 }
 
-abs_path() {
-  python3 -c 'import os,sys; print(os.path.abspath(sys.argv[1]))' "$1"
+if [[ $# -ne 3 ]]; then
+  die "Usage: $0 <app-path> <dmg-output> <volume-name>"
+fi
+
+APP_PATH="$1"
+DMG_OUTPUT="$2"
+VOLUME_NAME="$3"
+
+[[ "$APP_PATH" == *.app ]] || die "App path must end in .app: $APP_PATH"
+[[ -d "$APP_PATH" ]] || die "App bundle not found: $APP_PATH"
+[[ -f "$APP_PATH/Contents/Info.plist" ]] || die "Invalid app bundle; Contents/Info.plist is missing: $APP_PATH"
+[[ "$DMG_OUTPUT" == *.dmg ]] || die "Output path must end in .dmg: $DMG_OUTPUT"
+[[ ! -e "$DMG_OUTPUT" ]] || die "Refusing to overwrite existing output: $DMG_OUTPUT"
+[[ -n "$VOLUME_NAME" ]] || die "Volume name must not be empty"
+command -v hdiutil >/dev/null 2>&1 || die "hdiutil is required and was not found"
+command -v ditto >/dev/null 2>&1 || die "ditto is required and was not found"
+
+OUTPUT_DIRECTORY="$(dirname "$DMG_OUTPUT")"
+mkdir -p "$OUTPUT_DIRECTORY"
+OUTPUT_DIRECTORY="$(cd "$OUTPUT_DIRECTORY" && pwd -P)"
+DMG_OUTPUT="$OUTPUT_DIRECTORY/$(basename "$DMG_OUTPUT")"
+APP_PATH="$(cd "$(dirname "$APP_PATH")" && pwd -P)/$(basename "$APP_PATH")"
+
+STAGING_DIRECTORY="$(mktemp -d "${TMPDIR:-/tmp}/devnotch-dmg.XXXXXX")"
+cleanup() {
+  rm -rf "$STAGING_DIRECTORY"
 }
+trap cleanup EXIT
 
-ensure_dmgbuild_and_badge_support() {
-  if command -v dmgbuild >/dev/null 2>&1; then
-    return 0
-  fi
+ditto "$APP_PATH" "$STAGING_DIRECTORY/DevNotch.app"
+ln -s /Applications "$STAGING_DIRECTORY/Applications"
 
-  local req_file="$SCRIPT_DIR/requirements.txt"
-  if [ ! -f "$req_file" ]; then
-    die "Dependency lock file not found: $req_file"
-  fi
+hdiutil create \
+  -volname "$VOLUME_NAME" \
+  -srcfolder "$STAGING_DIRECTORY" \
+  -ov \
+  -format UDZO \
+  "$DMG_OUTPUT"
 
-  die "dmgbuild is not installed. Install hash-pinned dependencies first: python3 -m pip install --require-hashes -r $req_file"
-}
-
-find_app_icns() {
-  local app="$1"
-  local info_plist="$app/Contents/Info.plist"
-
-  if [ ! -f "$info_plist" ]; then
-    return 1
-  fi
-
-  local icon_file=""
-  icon_file="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$info_plist" 2>/dev/null || true)"
-  if [ -z "$icon_file" ]; then
-    icon_file="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$info_plist" 2>/dev/null || true)"
-  fi
-
-  if [ -n "$icon_file" ]; then
-    if [[ "$icon_file" != *.icns ]]; then
-      icon_file="$icon_file.icns"
-    fi
-    if [ -f "$app/Contents/Resources/$icon_file" ]; then
-      echo "$app/Contents/Resources/$icon_file"
-      return 0
-    fi
-  fi
-
-  # Fallback: any .icns inside the app bundle
-  local candidate
-  candidate="$(find "$app/Contents/Resources" -maxdepth 1 -name '*.icns' -print -quit 2>/dev/null || true)"
-  if [ -n "$candidate" ] && [ -f "$candidate" ]; then
-    echo "$candidate"
-    return 0
-  fi
-
-  return 1
-}
-
-if [ ! -f "$SETTINGS" ]; then
-  die "dmgbuild settings not found: $SETTINGS"
-fi
-
-ensure_dmgbuild_and_badge_support
-
-export DMG_APP_PATH="$(abs_path "$APP_PATH")"
-export DMG_VOLUME_NAME="$VOLUME_NAME"
-
-BACKGROUND_TIFF="$BACKGROUND_DIR/background.tiff"
-
-export DMG_BACKGROUND="$(abs_path "$BACKGROUND_TIFF")"
-
-# Badge icon: use the app's icon for badging the volume icon
-if DMG_ICON_ICNS="$(find_app_icns "$DMG_APP_PATH" 2>/dev/null)"; then
-  export DMG_BADGE_ICON="$(abs_path "$DMG_ICON_ICNS")"
-  echo "Using badge icon for DMG volume."
-else
-  echo "No app icon found, skipping badge."
-fi
-
-echo "Creating DMG via dmgbuild: app=$DMG_APP_PATH output=$DMG_OUTPUT volume=$DMG_VOLUME_NAME"
-
-# Validate inputs early to give clearer errors for common typos
-if [ ! -e "$DMG_APP_PATH" ]; then
-  echo "Error: App path not found: $DMG_APP_PATH" >&2
-  echo "Make sure you passed the correct .app path (e.g. Release/boringNotch.app)" >&2
-  exit 2
-fi
-
-if [ ! -d "$DMG_APP_PATH" ]; then
-  echo "Error: App path exists but is not a directory: $DMG_APP_PATH" >&2
-  exit 3
-fi
-
-dmgbuild -s "$SETTINGS" "$DMG_VOLUME_NAME" "$DMG_OUTPUT"
-
-exit $?
+[[ -f "$DMG_OUTPUT" ]] || die "hdiutil completed without creating: $DMG_OUTPUT"
+printf 'Created %s\n' "$DMG_OUTPUT"

@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+die() {
+  printf 'Error: %s\n' "$*" >&2
+  exit 1
+}
+
+usage() {
+  cat <<'USAGE'
+Usage: scripts/build-local [--configuration Debug|Release] [--install]
+
+Builds an ad-hoc signed DevNotch.app from source. --install copies the verified
+app to /Applications and refuses to overwrite an existing installation.
+USAGE
+}
+
+CONFIGURATION="Release"
+INSTALL=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --configuration)
+      [[ $# -ge 2 ]] || die "--configuration requires Debug or Release"
+      CONFIGURATION="$2"
+      shift 2
+      ;;
+    --install)
+      INSTALL=true
+      shift
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      die "Unknown argument: $1"
+      ;;
+  esac
+done
+
+[[ "$CONFIGURATION" == "Debug" || "$CONFIGURATION" == "Release" ]] || die "Configuration must be Debug or Release"
+
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+SELECTED_DEVELOPER_DIRECTORY="$(xcode-select -p 2>/dev/null || true)"
+[[ "$SELECTED_DEVELOPER_DIRECTORY" == *Xcode.app/Contents/Developer ]] || die "Full Xcode 16.4 or newer is required. Install Xcode, then run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer"
+xcodebuild -version >/dev/null 2>&1 || die "xcodebuild is unavailable from the selected Xcode toolchain"
+
+DERIVED_DATA="$PROJECT_ROOT/.build/xcode"
+xcodebuild \
+  -project "$PROJECT_ROOT/boringNotch.xcodeproj" \
+  -scheme boringNotch \
+  -configuration "$CONFIGURATION" \
+  -derivedDataPath "$DERIVED_DATA" \
+  -destination "generic/platform=macOS" \
+  CODE_SIGN_STYLE=Manual \
+  CODE_SIGN_IDENTITY=- \
+  DEVELOPMENT_TEAM= \
+  build
+
+APP_PATH="$DERIVED_DATA/Build/Products/$CONFIGURATION/DevNotch.app"
+[[ -d "$APP_PATH" ]] || die "Build succeeded but the expected app was not found: $APP_PATH"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Contents/Info.plist")" == "dev.devnotch.app" ]] || die "Built app has an unexpected bundle identifier"
+codesign --verify --deep --strict "$APP_PATH" || die "Ad-hoc signature verification failed: $APP_PATH"
+
+if [[ "$INSTALL" == true ]]; then
+  INSTALL_PATH="/Applications/DevNotch.app"
+  [[ ! -e "$INSTALL_PATH" ]] || die "Refusing to overwrite $INSTALL_PATH. Remove the existing app explicitly, then rerun this command."
+  ditto "$APP_PATH" "$INSTALL_PATH"
+  codesign --verify --deep --strict "$INSTALL_PATH" || die "Installed app signature verification failed: $INSTALL_PATH"
+  printf 'Installed %s\n' "$INSTALL_PATH"
+else
+  printf 'Built %s\n' "$APP_PATH"
+fi

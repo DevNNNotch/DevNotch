@@ -1,9 +1,0 @@
-name: Legacy Crowdin sync (disabled)
-
-on:
-  workflow_dispatch:
-
-jobs:
-  crowdin:
-    if: ${{ false }}
-    runs-on: ubuntu-latest

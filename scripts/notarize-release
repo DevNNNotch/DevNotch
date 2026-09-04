@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+die() {
+  printf 'Error: %s\n' "$*" >&2
+  exit 1
+}
+
+if [[ $# -ne 1 ]]; then
+  die "Usage: $0 <signed-dmg>"
+fi
+
+DMG_PATH="$1"
+[[ -f "$DMG_PATH" && "$DMG_PATH" == *.dmg ]] || die "Signed DMG not found: $DMG_PATH"
+codesign --verify --verbose=2 "$DMG_PATH" || die "DMG signature verification failed before notarization"
+
+if [[ -n "${DEVNOTCH_NOTARY_KEYCHAIN_PROFILE:-}" ]]; then
+  xcrun notarytool submit "$DMG_PATH" \
+    --keychain-profile "$DEVNOTCH_NOTARY_KEYCHAIN_PROFILE" \
+    --wait
+elif [[ -n "${DEVNOTCH_NOTARY_KEY_ID:-}" || -n "${DEVNOTCH_NOTARY_ISSUER_ID:-}" || -n "${DEVNOTCH_NOTARY_KEY_PATH:-}" ]]; then
+  [[ -n "${DEVNOTCH_NOTARY_KEY_ID:-}" ]] || die "Set DEVNOTCH_NOTARY_KEY_ID"
+  [[ -n "${DEVNOTCH_NOTARY_ISSUER_ID:-}" ]] || die "Set DEVNOTCH_NOTARY_ISSUER_ID"
+  [[ -n "${DEVNOTCH_NOTARY_KEY_PATH:-}" ]] || die "Set DEVNOTCH_NOTARY_KEY_PATH"
+  KEY_ID="$DEVNOTCH_NOTARY_KEY_ID"
+  ISSUER_ID="$DEVNOTCH_NOTARY_ISSUER_ID"
+  KEY_PATH="$DEVNOTCH_NOTARY_KEY_PATH"
+  [[ -f "$KEY_PATH" ]] || die "Notary API key file not found: $KEY_PATH"
+  xcrun notarytool submit "$DMG_PATH" \
+    --key "$KEY_PATH" \
+    --key-id "$KEY_ID" \
+    --issuer "$ISSUER_ID" \
+    --wait
+else
+  die "Configure DEVNOTCH_NOTARY_KEYCHAIN_PROFILE, or set all three API key variables: DEVNOTCH_NOTARY_KEY_ID, DEVNOTCH_NOTARY_ISSUER_ID, DEVNOTCH_NOTARY_KEY_PATH"
+fi
+
+xcrun stapler staple "$DMG_PATH"
+xcrun stapler validate "$DMG_PATH"
+spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG_PATH"
+
+MOUNT_POINT="$(mktemp -d "${TMPDIR:-/tmp}/devnotch-notary.XXXXXX")"
+ATTACHED=false
+cleanup() {
+  if [[ "$ATTACHED" == true ]]; then
+    hdiutil detach "$MOUNT_POINT" -quiet || true
+  fi
+  rm -rf "$MOUNT_POINT"
+}
+trap cleanup EXIT
+hdiutil attach "$DMG_PATH" -mountpoint "$MOUNT_POINT" -nobrowse -readonly -quiet
+ATTACHED=true
+[[ -d "$MOUNT_POINT/DevNotch.app" ]] || die "Notarized DMG does not contain DevNotch.app"
+spctl --assess --type execute --verbose=2 "$MOUNT_POINT/DevNotch.app"
+hdiutil detach "$MOUNT_POINT" -quiet
+ATTACHED=false
+
+CHECKSUM_PATH="$DMG_PATH.sha256"
+DMG_DIRECTORY="$(cd "$(dirname "$DMG_PATH")" && pwd -P)"
+DMG_FILENAME="$(basename "$DMG_PATH")"
+(cd "$DMG_DIRECTORY" && shasum -a 256 "$DMG_FILENAME") > "$CHECKSUM_PATH"
+printf 'Notarized %s\n' "$DMG_PATH"
+printf 'Wrote %s\n' "$CHECKSUM_PATH"

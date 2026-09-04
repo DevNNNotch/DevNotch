@@ -15,6 +15,7 @@ DevNotch is currently a development branch derived from TheBoredTeam's `boring.n
 - The Codex adapter successfully parses the current local Codex session log schema and extracts cumulative token counters.
 - The localhost API passes an end-to-end smoke test covering authenticated health, accepted usage, missing authentication, and invalid token counts.
 - The replacement macOS icon is generated reproducibly from the repository SVG source and every asset slot has the expected pixel dimensions.
+- The native DMG and Homebrew Cask packaging paths pass a local mount-and-parse smoke test.
 - A standalone prototype launched successfully before its services were migrated into the upstream application.
 
 ## Implemented, awaiting full Xcode verification
@@ -33,19 +34,20 @@ DevNotch is currently a development branch derived from TheBoredTeam's `boring.n
 - Developer settings for monitoring, Ollama, OpenAI API usage, and the local event server.
 - DevNotch-specific application and embedded XPC service bundle identifiers.
 - Swift core tests and a GitHub Actions workflow.
+- Reproducible source-build/install, Developer ID signing, Apple notarization, GitHub Release, and Homebrew Cask automation.
 
 ## Not yet verified or delivered
 
 - Full `xcodebuild` Debug and Release builds. The active developer directory contains Command Line Tools only; complete Xcode is not installed or selected.
 - Swift tests. The installed Command Line Tools do not contain XCTest or Swift Testing; CI and full Xcode must run them.
-- Signed, notarized, or packaged release artifacts.
+- A signed and notarized public release. The pipeline exists, but it cannot produce a trusted artifact until the GitHub repositories and Apple release credentials are configured.
 - Runtime verification of the integrated upstream app and visual QA of the Developer tab.
 - Real OpenAI Usage API results because no Admin Key has been provided.
 - A real Ollama generation because service/model availability has not been confirmed.
 - Any verified Trae provider.
 - GPU, external-display brightness, and Bluetooth headphone battery metrics.
 - A supported Trae export API or hook. TRAE currently documents usage in its IDE and account profile, but no public machine-readable integration surface.
-- GitHub Organization, repositories, Discussions, labels, rulesets, or remote push. GitHub CLI is not installed and Organization identity has not been supplied.
+- GitHub Organization, application repository, Homebrew tap, Discussions, labels, rulesets, or remote push. Organization contact and ownership details have not been supplied.
 - macOS 13 support. The selected upstream baseline targets macOS 14; backport feasibility has not been established.
 
 ## Security boundaries
