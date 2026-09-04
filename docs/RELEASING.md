@@ -34,7 +34,7 @@ Configure these Actions secrets in the application repository:
 | `APPLE_NOTARY_PRIVATE_KEY_BASE64` | Base64-encoded `.p8` file |
 | `HOMEBREW_TAP_TOKEN` | Fine-grained token with Contents write access only to `homebrew-devnotch` |
 
-Create a GitHub environment named `release`, restrict it to protected release tags, and require a maintainer review before exposing these secrets. The workflow rejects tags whose commit is not contained in `main`.
+Create a GitHub environment named `release`, restrict it to protected release tags, and require a maintainer review before exposing the Apple secrets. Create a separate `homebrew` environment containing only `HOMEBREW_TAP_TOKEN`. The workflow rejects tags whose commit is not contained in `main`.
 
 Encode binary secret files without line wrapping:
 
@@ -70,7 +70,7 @@ The notarization script staples the ticket, asks Gatekeeper to assess the DMG, a
 
 1. Ensure `main` is green and the version in the Xcode project matches the intended stable release.
 2. Create and push an annotated tag: `git tag -a v0.1.0 -m 'DevNotch 0.1.0' && git push origin v0.1.0`.
-3. The release workflow rebuilds, signs, notarizes, publishes the DMG and checksum, then updates the Homebrew Cask.
+3. The release job rebuilds, signs, notarizes, and publishes the DMG and checksum. A separate least-privilege job then downloads that exact published DMG and updates the Homebrew Cask.
 4. On a clean Mac, run `brew install --cask <owner>/devnotch/devnotch`, launch DevNotch, and verify Gatekeeper reports no warning.
 
 Tags containing a pre-release suffix publish a GitHub pre-release and intentionally do not update Homebrew.

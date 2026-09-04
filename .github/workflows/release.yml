@@ -16,6 +16,8 @@ jobs:
   release:
     runs-on: macos-15
     environment: release
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     env:
       DEVNOTCH_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
       DEVNOTCH_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -59,14 +61,12 @@ jobs:
           CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
           NOTARY_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_NOTARY_PRIVATE_KEY_BASE64 }}
-          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           set -euo pipefail
           [[ -n "$CERTIFICATE_BASE64" ]] || { echo "::error::Missing secret APPLE_DEVELOPER_ID_CERTIFICATE_BASE64"; exit 1; }
           [[ -n "$CERTIFICATE_PASSWORD" ]] || { echo "::error::Missing secret APPLE_CERTIFICATE_PASSWORD"; exit 1; }
           [[ -n "$KEYCHAIN_PASSWORD" ]] || { echo "::error::Missing secret APPLE_KEYCHAIN_PASSWORD"; exit 1; }
           [[ -n "$NOTARY_PRIVATE_KEY_BASE64" ]] || { echo "::error::Missing secret APPLE_NOTARY_PRIVATE_KEY_BASE64"; exit 1; }
-          [[ -n "$TAP_TOKEN" ]] || { echo "::error::Missing secret HOMEBREW_TAP_TOKEN"; exit 1; }
           [[ -n "$DEVNOTCH_DEVELOPMENT_TEAM" ]] || { echo "::error::Missing secret APPLE_DEVELOPMENT_TEAM"; exit 1; }
           [[ -n "$DEVNOTCH_SIGNING_IDENTITY" ]] || { echo "::error::Missing secret APPLE_SIGNING_IDENTITY"; exit 1; }
           [[ -n "$DEVNOTCH_NOTARY_KEY_ID" ]] || { echo "::error::Missing secret APPLE_NOTARY_KEY_ID"; exit 1; }
@@ -129,14 +129,46 @@ jobs:
             --title "DevNotch $VERSION" \
             "${PRERELEASE_ARGUMENT[@]}"
 
-      - name: Update Homebrew tap
-        if: ${{ !contains(steps.version.outputs.version, '-') }}
+  homebrew:
+    name: Update Homebrew tap
+    needs: release
+    if: ${{ !contains(needs.release.outputs.version, '-') }}
+    runs-on: macos-15
+    environment: homebrew
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.release.outputs.version }}
+    steps:
+      - name: Check out packaging source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Validate Homebrew token
         env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           set -euo pipefail
-          SHA256="$(shasum -a 256 "dist/DevNotch-$VERSION.dmg" | awk '{print $1}')"
+          [[ -n "$TAP_TOKEN" ]] || { echo "::error::Missing secret HOMEBREW_TAP_TOKEN"; exit 1; }
+
+      - name: Download published DMG
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/release"
+          gh release download "v$VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "DevNotch-$VERSION.dmg" \
+            --dir "$RUNNER_TEMP/release"
+
+      - name: Update Cask
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          DMG_PATH="$RUNNER_TEMP/release/DevNotch-$VERSION.dmg"
+          [[ -f "$DMG_PATH" ]] || { echo "::error::Published DMG was not downloaded: $DMG_PATH"; exit 1; }
+          SHA256="$(shasum -a 256 "$DMG_PATH" | awk '{print $1}')"
           gh auth setup-git
           gh repo clone "${GITHUB_REPOSITORY_OWNER}/homebrew-devnotch" "$RUNNER_TEMP/homebrew-devnotch"
           scripts/render-homebrew-cask \
@@ -150,9 +182,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Casks/devnotch.rb
-          git diff --cached --exit-code && {
-            echo "::error::Homebrew Cask did not change for release $VERSION"
-            exit 1
-          }
+          if git diff --cached --exit-code; then
+            echo "Homebrew Cask already points to DevNotch $VERSION."
+            exit 0
+          fi
           git commit -m "Update DevNotch to $VERSION"
           git push origin HEAD:main
