@@ -16,6 +16,7 @@ DevNotch is currently a development branch derived from TheBoredTeam's `boring.n
 - The localhost API passes an end-to-end smoke test covering authenticated health, accepted usage, missing authentication, and invalid token counts.
 - The replacement macOS icon is generated reproducibly from the repository SVG source and every asset slot has the expected pixel dimensions.
 - The native DMG and Homebrew Cask packaging paths pass a local mount-and-parse smoke test.
+- The `DevNNNotch` Organization, public application repository, Homebrew tap, organization profile, pinned repositories, and organization Discussions exist.
 - A standalone prototype launched successfully before its services were migrated into the upstream application.
 
 ## Implemented, awaiting full Xcode verification
@@ -47,7 +48,7 @@ DevNotch is currently a development branch derived from TheBoredTeam's `boring.n
 - Any verified Trae provider.
 - GPU, external-display brightness, and Bluetooth headphone battery metrics.
 - A supported Trae export API or hook. TRAE currently documents usage in its IDE and account profile, but no public machine-readable integration surface.
-- GitHub application repository, Homebrew tap, Discussions, labels, rulesets, or remote push. The `DevNNNotch` Organization exists, but its repositories have not been created.
+- Remote push, repository labels, rulesets, protected release environments, and release secrets. The organization's OAuth App policy currently blocks the local Git credential until an owner completes GitHub sudo-mode verification and approves that client.
 - macOS 13 support. The selected upstream baseline targets macOS 14; backport feasibility has not been established.
 
 ## Security boundaries

@@ -214,7 +214,7 @@ boringNotch/DevNotch/
 
 The [DevNNNotch GitHub Organization](https://github.com/DevNNNotch) hosts the application, the `homebrew-devnotch` tap, integration documentation, Discussions, and future adapters that contain real maintained code. Empty SDK or plugin repositories will not be created for appearance.
 
-- Use Discussions for questions, ideas, and integration proposals.
+- Use [Discussions](https://github.com/orgs/DevNNNotch/discussions) for questions, ideas, and integration proposals.
 - Use the integration issue form for a new provider data source.
 - Read [CONTRIBUTING.md](CONTRIBUTING.md), [GOVERNANCE.md](GOVERNANCE.md), and [SUPPORT.md](SUPPORT.md).
 
