@@ -1,94 +1,58 @@
----
-name: Bug Report
-description: File a bug report.
-title: '[Bug] '
-type: Bug
-labels:
-  - unconfirmed
+name: Bug report
+description: Report a reproducible DevNotch defect.
+title: "[Bug]: "
+labels: [bug, triage]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to fill out this bug report!
+        Do not include API keys, local API tokens, clipboard contents, prompts, or private source code.
   - type: textarea
-    id: what-happened
+    id: reproduction
     attributes:
-      label: What happened? What are the steps to reproduce the issue?
-      description: >-
-        Describe the bug and include the steps to replicate the issue. Issues
-        with images or videos will be resolved faster.
-      placeholder: Clearly explain the issue. Please limit each post to one issue.
+      label: Reproduction
+      description: Describe one issue with exact steps and the observed error.
     validations:
       required: true
   - type: textarea
-    id: expected-behaviour
+    id: expected
     attributes:
-      label: What did you expect to happen?
-      description: A clear and concise description of what you expected to happen.
+      label: Expected behavior
     validations:
       required: true
   - type: dropdown
     id: version
     attributes:
-      label: Boring Notch Version
-      description: >-
-        What version of our software are you running? (Go to ✦ in the menu bar >
-        Settings > About)
+      label: DevNotch version
       options:
-        - Select a version
-        - v2.7.3
-        - v2.7.2
-        - v2.7.1
-        - v2.7
-        - v2.7-rc.3
-        - v2.6
+        - Development branch
+        - Local build from main
+        - Tagged release
     validations:
       required: true
   - type: input
-    id: operating-system
+    id: macos
     attributes:
-      label: macOS Version
-      description: Go to  > About This Mac
+      label: macOS version
     validations:
       required: true
-  - type: dropdown
-    id: music-source
-    attributes:
-      label: Music Source? (If relevant)
-      description: >-
-         If this issue is related to music, what music source did you select in Boring Notch settings?
-      options:
-        - Now Playing
-        - Apple Music
-        - Spotify
-        - YouTube Music
-    validations:
-      required: false
   - type: input
-    id: music-app
+    id: hardware
     attributes:
-      label: Music App (If using Now Playing)
-    validations:
-      required: false
-  - type: input
-    id: music-website
-    attributes:
-      label: Website (If using browser for music)
-    validations:
-      required: false
+      label: Mac model and display layout
+      description: Include notch/no-notch and external displays when relevant.
   - type: textarea
     id: logs
     attributes:
-      label: Relevant log output
-      description: >-
-        Please copy and paste any relevant log output. This will be
-        automatically formatted into code, so no need for backticks.
+      label: Sanitized log output
+      description: Remove credentials, prompts, paths, and source content.
       render: shell
   - type: checkboxes
     id: checks
     attributes:
       label: Checks
-      description: 
       options:
-        - label: I haven't found any duplicates with my issue.
+        - label: I searched existing issues and Discussions.
+          required: true
+        - label: I removed secrets and private content from this report.
           required: true

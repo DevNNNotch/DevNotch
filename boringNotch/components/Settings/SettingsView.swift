@@ -15,7 +15,7 @@ import SwiftUI
 import SwiftUIIntrospect
 
 struct SettingsView: View {
-    @State private var selectedTab = "General"
+    @State private var selectedTab = "Developer"
     @State private var accentColorUpdateTrigger = UUID()
 
     let updaterController: SPUStandardUpdaterController?
@@ -27,6 +27,9 @@ struct SettingsView: View {
     var body: some View {
         NavigationSplitView {
             List(selection: $selectedTab) {
+                NavigationLink(value: "Developer") {
+                    Label("Developer", systemImage: "terminal")
+                }
                 NavigationLink(value: "General") {
                     Label("General", systemImage: "gear")
                 }
@@ -71,6 +74,8 @@ struct SettingsView: View {
         } detail: {
             Group {
                 switch selectedTab {
+                case "Developer":
+                    DeveloperSettingsView()
                 case "General":
                     GeneralSettings()
                 case "Appearance":

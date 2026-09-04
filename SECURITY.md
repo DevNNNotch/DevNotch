@@ -1,11 +1,22 @@
 # Security Policy
 
-## Reporting a Vulnerability
+## Reporting a vulnerability
 
-The Bored Team and community take security bugs in Boring Notch seriously. We appreciate your efforts to responsibly disclose your findings, and will make every effort to acknowledge your contributions.
+Use the repository's private **Security > Report a vulnerability** form. Do not disclose security issues in public Issues or Discussions.
 
-To report a security issue, please use the GitHub Security Advisory ["Report a Vulnerability"](https://github.com/TheBoredTeam/boring.notch/security/advisories/new) tab.
+Include:
 
-The Bored Team will send a response indicating the next steps in handling your report. After the initial reply to your report, we will keep you informed of the progress towards a fix and full announcement, and may ask for additional information or guidance.
+- Affected commit or version.
+- Reproduction steps.
+- Expected security boundary and observed behavior.
+- Whether credentials, clipboard data, local files, or network access are involved.
 
-Report security bugs in third-party dependencies to the person or team maintaining the package or dependency.
+Never include real API keys, local API tokens, private prompts, or proprietary source code. Use synthetic data and revoke any credential that may have been exposed.
+
+## Sensitive areas
+
+Changes involving Keychain, clipboard access, the localhost API, provider credentials, entitlements, Ollama endpoints, or source-log parsing require explicit security review.
+
+DevNotch accepts only authenticated local API requests, rejects unknown fields and oversized bodies, and does not execute commands from event payloads. A bypass of any of these controls is considered a security issue.
+
+Security support covers the current release line after releases exist. Until then, reports should reference the exact commit.

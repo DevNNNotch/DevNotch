@@ -25,6 +25,7 @@ public enum NotchState {
 }
 
 public enum NotchViews {
+    case developer
     case home
     case shelf
 }

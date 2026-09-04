@@ -1,0 +1,39 @@
+name: AI client integration
+description: Propose a verified usage or event integration for a developer tool.
+title: "[Integration]: "
+labels: [integration]
+body:
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      options:
+        - Codex
+        - Claude Code
+        - Trae
+        - Ollama
+        - vLLM
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Verified data source
+      description: Link the official API, hook, export, or structured event documentation.
+    validations:
+      required: true
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Privacy boundary
+      description: State exactly which fields are collected and whether prompt content is accessed.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected behavior
+      description: Describe the end-to-end workflow and failure states.
+    validations:
+      required: true

@@ -1,197 +1,196 @@
-<h1 align="center">
-  <br>
-  <a href="http://theboring.name"><img src="https://framerusercontent.com/images/RFK4vs0kn8pRMuOO58JeyoemXA.png?scale-down-to=256" alt="Boring Notch" width="150"></a>
-  <br>
-  Boring Notch
-  <br>
-</h1>
+<div align="center">
 
+<img src="boringNotch/Assets.xcassets/AppIcon.appiconset/devnotch-256@2x.png" width="148" alt="DevNotch app icon">
 
-<p align="center">
-  <a title="Crowdin" target="_blank" href="https://crowdin.com/project/boring-notch"><img src="https://badges.crowdin.net/boring-notch/localized.svg"></a>
-  <img src="https://github.com/TheBoredTeam/boring.notch/actions/workflows/cicd.yml/badge.svg" alt="TheBoringNotch Build & Test" style="margin-right: 10px;" />
-  <a href="https://discord.gg/c8JXA7qrPm">
-    <img src="https://dcbadge.limes.pink/api/server/https://discord.gg/c8JXA7qrPm?style=flat" alt="Discord Badge" />
-  </a>
-  <a href="https://www.ko-fi.com/alexander5015">
-    <img src="https://srv-cdn.himpfen.io/badges/kofi/kofi-flat.svg" alt="Ko-Fi" />
-  </a>
-</p>
+# DevNotch
 
-<!--Welcome to **Boring.Notch**, the coolest way to make your MacBook's notch the star of the show! Forget about those boring status bars—our notch turns into a dynamic music control center, complete with a snazzy visualizer and all the music controls you need. It's like having a mini concert right at the top of your screen! -->
+**A native macOS workspace for AI usage, local agents, builds, logs, and system status.**
 
-Say hello to **Boring Notch**, the coolest way to make your MacBook’s notch the star of the show! Say goodbye to boring status bars: with Boring Notch, your notch transforms into a dynamic music control center, complete with a vibrant visualizer and all the essential music controls you need. But that’s just the start! Boring Notch also offers calendar integration, a handy file shelf with AirDrop support, a complete MacOS HUD replacement and more!
+**面向开发者的 macOS AI 灵动岛：在顶部统一查看 Token、Agent、构建、日志与本地模型状态。**
 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/2d5f69c1-6e7b-4bc2-a6f1-bb9e27cf88a8" alt="Demo GIF" />
-</p>
+Development preview. No signed release is available yet.
 
-<!--https://github.com/user-attachments/assets/19b87973-4b3a-4853-b532-7e82d1d6b040-->
----
-<!--## Table of Contents
-- [Installation](#installation)
-- [Usage](#usage)
-- [Roadmap](#-roadmap)
-- [Building from Source](#building-from-source)
-- [Contributing](#-contributing)
-- [Join our Discord Server](#join-our-discord-server)
-- [Star History](#star-history)
-- [Buy us a coffee!](#buy-us-a-coffee)
-- [Acknowledgments](#-acknowledgments)-->
+</div>
 
-## Installation
+DevNotch turns the area around the MacBook notch, or the center of the menu bar on other displays, into a compact developer console. It adds verified AI token telemetry, local Ollama actions, clipboard context, external task events, and system metrics to the mature window and interaction foundation from [Boring Notch](https://github.com/TheBoredTeam/boring.notch).
 
-**System Requirements:**
-- macOS **14 Sonoma** or later
+The project reports only data it can identify and verify. Missing credentials, undocumented provider formats, and unavailable hardware metrics remain visibly unavailable instead of becoming estimated values.
+
+## Current capabilities
+
+- Existing notch and non-notch window behavior inherited from Boring Notch.
+- Developer dashboard with CPU, memory, network, battery, token totals, clipboard context, and task state.
+- OpenAI organization Usage API integration with Admin Key storage in macOS Keychain.
+- Clear separation between OpenAI API organization usage and Codex subscription quota.
+- Clipboard classification for source code, errors, Git diffs, English, general text, and common credential formats.
+- Cancellable, streaming local AI actions through Ollama.
+- Ollama and vLLM model endpoint health checks.
+- Authenticated `127.0.0.1` API for builds, tasks, logs, and client-reported token events.
+- Explicit integration states for Codex, Claude Code, and Trae.
+
+See [Implementation Status](docs/IMPLEMENTATION_STATUS.md) for what has been verified, what still requires full Xcode, and which providers need an authoritative data source.
+
+## Developer dashboard
+
+The open notch contains three dense work surfaces:
+
+| System | AI usage | Context |
+| --- | --- | --- |
+| CPU, memory, network, battery | Input, cached input, output, provider health | Clipboard actions, Agent tasks, build state |
+
+AI results open in a separate popover so long responses do not resize or destabilize the notch.
+
+## Product boundary
+
+| Project | Primary focus | DevNotch relationship |
+| --- | --- | --- |
+| [Boring Notch](https://github.com/TheBoredTeam/boring.notch) | Media, calendar, shelf, HUDs, and general notch utilities | The GPL-3.0 foundation used by this project |
+| [Atoll](https://github.com/Ebullioscopic/Atoll) | General notch utilities, system insight, extensions, and LLM usage tracking | Adjacent project with overlapping telemetry workflows |
+| **DevNotch** | Source-labeled token telemetry, authenticated automation events, and local Ollama clipboard actions | Optimized for measurable developer and local-AI workflows |
+
+DevNotch does not claim exclusivity. Its design constraint is stricter: a usage number must retain its provider, collection source, and confidence level, and unavailable data must remain visibly unavailable.
+
+## Preview
+
+Integrated application screenshots and an interaction recording will be added after the full Xcode build and runtime QA gate passes. The repository does not use generated UI screenshots as release evidence.
+
+## Data flow
+
+```mermaid
+flowchart LR
+    OA[OpenAI Usage API] --> UP[Usage providers]
+    CC[Codex / Claude Code / Trae hooks] --> API[Authenticated localhost API]
+    SH[Shell and Python tasks] --> API
+    API --> DS[Developer workspace model]
+    UP --> DS
+    SYS[macOS public system APIs] --> DS
+    CLIP[Clipboard context] --> DS
+    DS --> UI[Notch dashboard]
+    CLIP --> OL[Local Ollama]
+    OL --> UI
+```
+
+## Build from source
+
+The selected upstream baseline currently requires:
+
+- macOS 14 Sonoma or newer
+- Xcode 16.4 or newer
 - Apple Silicon or Intel Mac
 
----
-
-### Option 1: Download and Install Manually
-
-<a href="https://github.com/TheBoredTeam/boring.notch/releases/latest/download/boringNotch.dmg" target="_self"><img width="200" src="https://github.com/user-attachments/assets/e3179be1-8416-4b8a-b417-743e1ecc67d6" alt="Download for macOS" /></a>
-
-Once downloaded, open the `.dmg` and move **Boring Notch** to your `/Applications` folder.
-
-> [!IMPORTANT]
-> We don't have an Apple Developer account (yet 👀), so macOS will warn you that Boring Notch is from an unidentified developer on first launch. This is expected behavior.
->
-> You'll need to bypass this before the app will open. You only need to do this once. Use one of the methods below.
-
----
-
-#### Recommended: Terminal (Always Works)
-
-This is the quickest and easiest method. It only requires a single command and works consistently for all users. System Settings can sometimes fail and won't work for non-admin users.
-
-After moving Boring Notch to your Applications folder, run:
-
-```bash
-xattr -dr com.apple.quarantine /Applications/boringNotch.app
+```sh
+git clone https://github.com/DevNotch/DevNotch.git
+cd DevNotch
+swift build
+swift test
+open boringNotch.xcodeproj
 ```
 
-Then open the app normally.
+Open the project, select the `boringNotch` scheme, and run the application. The application and XPC service use DevNotch bundle identifiers; internal target names remain inherited until a full Xcode signing migration can be verified.
 
----
+Homebrew installation and manual release downloads are planned only after a signed release pipeline exists. There is currently no valid DevNotch install command or downloadable binary.
 
-#### Alternative: System Settings
+## Configure Ollama
 
-> [!NOTE]
-> This method doesn't work for all users. If this doesn't work, use the Terminal method above.
+Install and start Ollama separately, then ensure at least one coding model is available:
 
-1. Try to open the app — you'll see a security warning.
-2. Click **OK** to dismiss it.
-3. Open **System Settings** > **Privacy & Security**.
-4. Scroll to the bottom and click **Open Anyway** next to the Boring Notch warning.
-5. Confirm if prompted.
-
----
-
-### Option 2: Install via Homebrew
-
-You can also install using [Homebrew](https://brew.sh). The Homebrew installation automatically bypasses the macOS security warning described above.
-
-```bash
-brew install --cask TheBoredTeam/boring-notch/boring-notch
+```sh
+ollama list
+ollama pull qwen2.5-coder:7b
 ```
 
-## Usage
+In **Settings > Developer**, configure the endpoint and model. The default endpoint is `http://127.0.0.1:11434`. DevNotch checks `/api/tags` and reports the actual connection error when Ollama is unavailable.
 
-- Launch the app, and voilà—your notch is now the coolest part of your screen.
-- Hover over the notch to see it expand and reveal all its secrets.
-- Use the controls to manage your music like a rockstar.
-- Click the star in your menu bar to customize your notch to your heart's content.
+Clipboard text is sent only after the user selects an action. Common private-key, API-key, GitHub-token, and JWT patterns block AI actions. Generated text is displayed but never executed.
 
-## 📋 Roadmap
-- [x] Playback live activity 🎧
-- [x] Calendar integration 📆
-- [x] Reminders integration ☑️
-- [x] Mirror 📷
-- [x] Charging indicator and current percentage 🔋
-- [x] Customizable gesture control 👆🏻
-- [x] Shelf functionality with AirDrop 📚
-- [x] Notch sizing customization, finetuning on different display sizes 🖥️
-- [x] System HUD replacements (volume, brightness, backlight) 🎚️💡⌨️
-- [ ] Bluetooth Live Activity (connect/disconnect for bluetooth devices) 
-- [ ] Weather integration ⛅️
-- [ ] Customizable Layout options 🛠️
-- [ ] Lock Screen Widgets 🔒
-- [ ] Extension system 🧩
-- [ ] Notifications (under consideration) 🔔
-<!-- - [ ] Clipboard history manager 📌 `Extension` -->
-<!-- - [ ] Download indicator of different browsers (Safari, Chromium browsers, Firefox) 🌍 `Extension`-->
-<!-- - [ ] Customizable function buttons 🎛️ -->
-<!-- - [ ] App switcher 🪄 -->
+## AI usage providers
 
-<!-- ## 🧩 Extensions
-> [!NOTE]
-> We’re hard at work on some awesome extensions! Stay tuned, and we’ll keep you updated as soon as they’re released. -->
+| Provider | Source | Status |
+| --- | --- | --- |
+| OpenAI API | Official organization Usage API | Implemented; requires an Admin Key |
+| Codex local sessions | Local structured `token_count` events | Adapter implemented; not subscription quota |
+| Codex Cloud | No verified remote usage or quota interface configured | Unavailable by design |
+| Claude Code | Official status-line input | Adapter implemented |
+| Trae | Usage is visible in the IDE/account, but no official export API or hook is documented | Local event submission available |
+| Other clients | `POST /v1/usage/events` | Implemented |
 
-## Building from Source
+OpenAI credentials are stored in Keychain. DevNotch does not calculate cost from a hard-coded pricing table and does not label API usage as Codex subscription usage.
 
-### Prerequisites
+To report local Codex session totals without exposing prompts or responses:
 
-- **macOS 15.6 or later**
-- **Xcode 26 or later**
+```sh
+export DEVNOTCH_API_TOKEN='value-copied-from-keychain'
+python3 Examples/codex_usage_sync.py --watch 30
+```
 
-### Installation
+This adapter reads the current local Codex JSONL structure. It fails with a concrete parsing error if that undocumented structure changes. It cannot see cloud tasks that have not been synchronized to the local client.
 
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/TheBoredTeam/boring.notch.git
-   cd boring.notch
-   ```
+TRAE documents per-session and account-profile usage in its product UI, but not a supported export API or hook. DevNotch therefore does not scrape authenticated pages or reverse-engineer private traffic. See [TRAE's official usage description](https://www.trae.ai/blog/trae_update_0902?v=1).
 
-2. **Open the Project in Xcode**:
-   ```bash
-   open boringNotch.xcodeproj
-   ```
+## Local developer API
 
-3. **Build and Run**:
-    - Click the "Run" button or press `Cmd + R`. Watch the magic unfold!
+Enable the server in **Settings > Developer**, copy the generated access token, and export it only to the process that needs it:
 
-## 🤝 Contributing
+```sh
+export DEVNOTCH_API_TOKEN='value-copied-from-keychain'
+scripts/devnotch-event build "Compile DevNotch" --state running --progress 0.4
+scripts/devnotch-event task "Run tests" --state succeeded --progress 1
+```
 
-We’re all about good vibes and awesome contributions! Read [CONTRIBUTING.md](CONTRIBUTING.md) to learn how you can join the fun!
+Submit client-reported token usage:
 
-## Join our Discord Server
+```sh
+scripts/devnotch-event usage \
+  --provider claude-code \
+  --input 4200 \
+  --cached-input 1800 \
+  --output 720 \
+  --model claude-sonnet \
+  --timestamp 2026-09-04T12:00:00Z
+```
 
-<a href="https://discord.gg/GvYcYpAKTu" target="_blank"><img src="https://iili.io/28m3GHv.png" alt="Join The Boring Server!" style="height: 60px !important;width: 217px !important;" ></a>
+The server requires Bearer authentication, accepts strict JSON objects, limits request size and rate, and never executes submitted commands. Read the complete [Local API documentation](docs/LOCAL_API.md).
 
-## Star History
-<!-- BROKEN: GitHub now restricts the stargazer API for privacy reasons
-<a href="https://www.star-history.com/#TheBoredTeam/boring.notch&Timeline">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=TheBoredTeam/boring.notch&type=Timeline&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=TheBoredTeam/boring.notch&type=Timeline" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=TheBoredTeam/boring.notch&type=Timeline" />
- </picture>
-</a>
--->
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/TheBoredTeam/org-star-chart-updater/main/projects/boring.notch/chart-dark.svg">
-   <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/TheBoredTeam/org-star-chart-updater/main/projects/boring.notch/chart-light.svg">
-   <img src="https://raw.githubusercontent.com/TheBoredTeam/org-star-chart-updater/main/projects/boring.notch/chart-light.svg" alt="TheBoredTeam/boring.notch GitHub star history">
- </picture>
+## Privacy and security
 
-## Support us on Ko-fi!
-<!-- <a href="https://www.buymeacoffee.com/jfxh67wvfxq" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-red.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a> -->
-<a href="https://www.ko-fi.com/alexander5015" target="_blank"><img src="https://github.com/user-attachments/assets//a76175ef-7e93-475a-8b67-4922ba5964c2" alt="Support us on Ko-fi" style="height: 70px !important;width: 346px !important;" ></a>
+- Provider credentials and the local API token are stored in macOS Keychain.
+- Clipboard contents are not persisted as history.
+- Local events are retained in memory with bounded history.
+- The event listener binds only to `127.0.0.1`.
+- Unknown request fields and invalid numeric ranges are rejected.
+- Unsupported providers display a reason instead of synthetic usage.
 
-## 🎉 Acknowledgments
+Report vulnerabilities privately according to [SECURITY.md](SECURITY.md).
 
-We would like to express our gratitude to the authors and maintainers of the open-source projects that made this possible. 
+## Architecture
 
-## Notable Projects
-- **[MediaRemoteAdapter](https://github.com/ungive/mediaremote-adapter)** –  An open-source project that allowed us to use the Now Playing source in macOS 15.4+
-- **[NotchDrop](https://github.com/Lakr233/NotchDrop)** – An open-source project that has been instrumental in developing the first version of the "Shelf" feature in Boring Notch.
+DevNotch is integrated as a filesystem-synchronized feature directory inside the inherited application target:
 
-For a full list of licenses and attributions, please see the [Third-Party Licenses](./THIRD_PARTY_LICENSES.md) file.
+```text
+boringNotch/DevNotch/
+├── DeveloperWorkspaceModel.swift
+├── Features/
+│   ├── AIAction.swift
+│   ├── ClipboardClassifier.swift
+│   ├── ClipboardMonitor.swift
+│   ├── DeveloperDashboardView.swift
+│   └── DeveloperSettingsView.swift
+├── Models/
+└── Services/
+```
 
-### Icon credits: [@maxtron95](https://github.com/maxtron95)
-### Website credits: [@himanshhhhuv](https://github.com/himanshhhhuv)
+`Package.swift` exposes the non-UI core separately so CI can build and test parsing, aggregation, Ollama streaming, Keychain access, monitoring, and local API behavior without loading the complete application.
 
-- **SwiftUI**: For making us look like coding wizards.
-- **You**: For being awesome and checking out **boring.notch**!
+## Community
 
+The planned DevNotch GitHub Organization will host the application, integration documentation, Discussions, and future adapters that contain real maintained code. Empty SDK or plugin repositories will not be created for appearance.
 
+- Use Discussions for questions, ideas, and integration proposals.
+- Use the integration issue form for a new provider data source.
+- Read [CONTRIBUTING.md](CONTRIBUTING.md), [GOVERNANCE.md](GOVERNANCE.md), and [SUPPORT.md](SUPPORT.md).
+
+## Attribution and license
+
+DevNotch is a derivative of [TheBoredTeam/boring.notch](https://github.com/TheBoredTeam/boring.notch). The upstream project and this derivative are distributed under the [GNU General Public License v3.0](LICENSE). Existing copyright notices, contributor history, and third-party attributions are retained.
+
+See [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES) for inherited dependency notices.

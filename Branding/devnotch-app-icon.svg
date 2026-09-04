@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="surface" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#202228"/>
+      <stop offset="1" stop-color="#090a0d"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#52e39c"/>
+      <stop offset="1" stop-color="#c9ff65"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="34" stdDeviation="30" flood-color="#000000" flood-opacity="0.38"/>
+    </filter>
+  </defs>
+
+  <rect x="64" y="64" width="896" height="896" rx="206" fill="url(#surface)" filter="url(#shadow)"/>
+  <rect x="72" y="72" width="880" height="880" rx="198" fill="none" stroke="#353941" stroke-width="8"/>
+
+  <!-- A compact notch and terminal prompt: the two defining ideas of DevNotch. -->
+  <path d="M350 177h324c35 0 64 29 64 64v58c0 35-29 64-64 64H350c-35 0-64-29-64-64v-58c0-35 29-64 64-64z" fill="#050608"/>
+  <circle cx="686" cy="270" r="16" fill="#52e39c"/>
+
+  <path d="M258 480l126 112-126 112" fill="none" stroke="url(#signal)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M466 714h300" fill="none" stroke="#f2f4ed" stroke-width="60" stroke-linecap="round"/>
+
+  <path d="M173 827h678" stroke="#343840" stroke-width="12" stroke-linecap="round"/>
+  <path d="M173 827h246" stroke="#52e39c" stroke-width="12" stroke-linecap="round"/>
+</svg>

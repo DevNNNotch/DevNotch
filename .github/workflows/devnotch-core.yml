@@ -1,0 +1,37 @@
+name: DevNotch Core
+
+on:
+  push:
+    branches: [main, "codex/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Select Xcode 16.4
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+      - name: Build core
+        run: swift build
+      - name: Test core
+        run: swift test
+      - name: Smoke test local API
+        run: scripts/smoke-local-api
+      - name: Validate Python client
+        run: |
+          python3 -m py_compile Examples/devnotch_client.py
+          python3 -m py_compile Examples/claude_statusline.py
+          python3 -m py_compile Examples/codex_usage_sync.py
+          python3 Examples/devnotch_client.py --help >/dev/null
+          python3 -m unittest discover -s Tests/Python -p 'test_*.py'
+      - name: Validate project files
+        run: |
+          plutil -lint boringNotch.xcodeproj/project.pbxproj
+          plutil -lint boringNotch/Info.plist
+          plutil -lint boringNotch/boringNotch.entitlements
+      - name: Check whitespace
+        run: git diff --check

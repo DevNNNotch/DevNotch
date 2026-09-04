@@ -1,4 +1,4 @@
-name: "Manual Build"
+name: "Legacy signed build (disabled)"
 on:
   workflow_dispatch:
     inputs:
@@ -25,6 +25,7 @@ permissions:
 jobs:
   build:
     name: Build and sign app
+    if: ${{ false }}
     uses: ./.github/workflows/build_reusable.yml
     with:
       head_ref: ${{ github.event.inputs.head_ref || github.ref_name || 'main' }}

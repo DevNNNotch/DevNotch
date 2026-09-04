@@ -36,9 +36,12 @@ struct ContentView: View {
     @Default(.useMusicVisualizer) var useMusicVisualizer
 
     @Default(.showNotHumanFace) var showNotHumanFace
+    @Default(.developerAnimationSpeed) private var developerAnimationSpeed
 
     // Shared interactive spring for movement/resizing to avoid conflicting animations
-    private let animationSpring = Animation.interactiveSpring(response: 0.38, dampingFraction: 0.8, blendDuration: 0)
+    private var animationSpring: Animation {
+        .interactiveSpring(response: 0.38 / developerAnimationSpeed, dampingFraction: 0.8, blendDuration: 0)
+    }
 
     private let extendedHoverPadding: CGFloat = 30
     private let zeroHeightHoverPadding: CGFloat = 10
@@ -120,8 +123,8 @@ struct ContentView: View {
                 mainLayout
                     .frame(height: vm.notchState == .open ? vm.notchSize.height : nil)
                     .conditionalModifier(true) { view in
-                        let openAnimation = Animation.spring(response: 0.42, dampingFraction: 0.8, blendDuration: 0)
-                        let closeAnimation = Animation.spring(response: 0.45, dampingFraction: 1.0, blendDuration: 0)
+                        let openAnimation = Animation.spring(response: 0.42 / developerAnimationSpeed, dampingFraction: 0.8, blendDuration: 0)
+                        let closeAnimation = Animation.spring(response: 0.45 / developerAnimationSpeed, dampingFraction: 1.0, blendDuration: 0)
                         
                         return view
                             .animation(vm.notchState == .open ? openAnimation : closeAnimation, value: vm.notchState)
@@ -345,6 +348,8 @@ struct ContentView: View {
             if vm.notchState == .open {
                 VStack {
                     switch coordinator.currentView {
+                    case .developer:
+                        DeveloperDashboardView()
                     case .home:
                         NotchHomeView(albumArtNamespace: albumArtNamespace)
                     case .shelf:
@@ -354,7 +359,7 @@ struct ContentView: View {
                 .transition(
                     .scale(scale: 0.8, anchor: .top)
                     .combined(with: .opacity)
-                    .animation(.smooth(duration: 0.35))
+                    .animation(.smooth(duration: 0.35 / developerAnimationSpeed))
                 )
                 .zIndex(1)
                 .allowsHitTesting(vm.notchState == .open)

@@ -1,4 +1,4 @@
-name: Build for macOS
+name: DevNotch macOS Build
 
 on:
   push:
@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Boring Notch
+    name: Build DevNotch
     strategy:
       matrix:
         platform:

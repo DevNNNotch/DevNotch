@@ -1,4 +1,4 @@
-name: Update Version Dropdown in Issue Form
+name: Legacy version form sync (disabled)
 # Least-privilege: only needs to push the updated issue template file.
 permissions:
   contents: write
@@ -12,6 +12,7 @@ on:
       - published
 jobs:
   update-dropdown:
+    if: ${{ false }}
     runs-on: ubuntu-latest
 
     steps:

@@ -1,7 +1,6 @@
-name: "Deploy Boring Notch"
+name: "Legacy upstream release (disabled)"
 on:
-  issue_comment:
-    types: [created]
+  workflow_dispatch:
 
 concurrency:
   group: release-${{ github.event.issue.number || github.run_id }}
@@ -22,7 +21,8 @@ jobs:
   # helper job to test for the release command in the comment; env is safe to use here
   check_release:
     name: Check for release command
-    if: ${{ github.event.issue.pull_request }}
+    # DevNotch must not publish with Boring Notch signing or Sparkle settings.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     outputs:
       is_release: ${{ steps.check.outputs.is_release }}

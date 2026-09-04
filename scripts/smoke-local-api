@@ -1,0 +1,92 @@
+#!/bin/sh
+set -eu
+
+repository_directory=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+temporary_directory=$(mktemp -d "${TMPDIR:-/tmp}/devnotch-api-smoke.XXXXXX")
+server_pid=""
+
+cleanup() {
+    if [ -n "$server_pid" ]; then
+        kill "$server_pid" 2>/dev/null || true
+    fi
+    rm -rf "$temporary_directory"
+}
+trap cleanup EXIT INT TERM
+
+cd "$repository_directory"
+
+swiftc -target arm64-apple-macosx14.0 -o "$temporary_directory/local-api-smoke" \
+    boringNotch/DevNotch/Models/UsageSample.swift \
+    boringNotch/DevNotch/Models/DeveloperEvent.swift \
+    boringNotch/DevNotch/Services/LocalAPIModels.swift \
+    boringNotch/DevNotch/Services/LocalAPIRouter.swift \
+    boringNotch/DevNotch/Services/LocalAPIServer.swift \
+    Tools/LocalAPISmoke/main.swift
+
+"$temporary_directory/local-api-smoke" >"$temporary_directory/server.log" 2>&1 &
+server_pid=$!
+
+attempt=0
+while [ "$attempt" -lt 30 ]; do
+    if grep -q '^READY$' "$temporary_directory/server.log"; then
+        break
+    fi
+    if ! kill -0 "$server_pid" 2>/dev/null; then
+        sed -n '1,120p' "$temporary_directory/server.log" >&2
+        exit 1
+    fi
+    attempt=$((attempt + 1))
+    sleep 0.1
+done
+
+if ! grep -q '^READY$' "$temporary_directory/server.log"; then
+    echo "Local API did not become ready" >&2
+    exit 1
+fi
+
+health=$(curl --silent --show-error --fail-with-body --noproxy '*' \
+    -H 'Authorization: Bearer smoke-test-token' \
+    http://127.0.0.1:54732/v1/health)
+
+usage=$(curl --silent --show-error --fail-with-body --noproxy '*' \
+    -X POST \
+    -H 'Authorization: Bearer smoke-test-token' \
+    -H 'Content-Type: application/json' \
+    --data '{"provider":"external","inputTokens":12,"cachedInputTokens":3,"outputTokens":4,"timestamp":"2026-09-04T00:00:00Z"}' \
+    http://127.0.0.1:54732/v1/usage/events)
+
+unauthorized_status=$(curl --silent --show-error --noproxy '*' \
+    --output "$temporary_directory/unauthorized.json" \
+    --write-out '%{http_code}' \
+    http://127.0.0.1:54732/v1/health)
+
+invalid_status=$(curl --silent --show-error --noproxy '*' \
+    --output "$temporary_directory/invalid.json" \
+    --write-out '%{http_code}' \
+    -X POST \
+    -H 'Authorization: Bearer smoke-test-token' \
+    -H 'Content-Type: application/json' \
+    --data '{"provider":"external","inputTokens":-1,"cachedInputTokens":0,"outputTokens":2,"timestamp":"2026-09-04T00:00:00Z"}' \
+    http://127.0.0.1:54732/v1/usage/events)
+
+case "$health" in
+    *'"status":"ok"'*) ;;
+    *) echo "Unexpected health response: $health" >&2; exit 1 ;;
+esac
+
+case "$usage" in
+    *'"status":"accepted"'*) ;;
+    *) echo "Unexpected usage response: $usage" >&2; exit 1 ;;
+esac
+
+if [ "$unauthorized_status" != "401" ]; then
+    echo "Expected unauthenticated health request to return 401, got $unauthorized_status" >&2
+    exit 1
+fi
+
+if [ "$invalid_status" != "400" ]; then
+    echo "Expected invalid usage request to return 400, got $invalid_status" >&2
+    exit 1
+fi
+
+echo "Local API smoke test passed"
