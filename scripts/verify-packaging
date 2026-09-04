@@ -60,7 +60,7 @@ CASK_PATH="$FIXTURE_ROOT/devnotch.rb"
 "$PROJECT_ROOT/scripts/render-homebrew-cask" \
   1.2.3 \
   aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
-  DevNotch/DevNotch \
+  DevNNNotch/DevNotch \
   "$CASK_PATH"
 ruby -c "$CASK_PATH" >/dev/null
 grep -F 'DevNotch-#{version}.dmg' "$CASK_PATH" >/dev/null || die "Rendered Cask has an unexpected asset name"

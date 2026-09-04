@@ -14,7 +14,7 @@ Render the initial Cask only after a notarized release exists:
 scripts/render-homebrew-cask \
   0.1.0 \
   <release-sha256> \
-  <owner>/DevNotch \
+  DevNNNotch/DevNotch \
   /path/to/homebrew-devnotch/Casks/devnotch.rb
 ```
 

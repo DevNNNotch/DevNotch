@@ -4,8 +4,8 @@ DevNotch publishes only Developer ID signed and Apple-notarized DMGs. A GitHub t
 
 ## Repository layout
 
-- `DevNotch/DevNotch`: application source and GitHub Releases
-- `DevNotch/homebrew-devnotch`: Homebrew tap containing `Casks/devnotch.rb`
+- `DevNNNotch/DevNotch`: application source and GitHub Releases
+- `DevNNNotch/homebrew-devnotch`: Homebrew tap containing `Casks/devnotch.rb`
 
 The organization owner can differ, but the application and tap must share the same owner for the automated tap update.
 
@@ -71,6 +71,6 @@ The notarization script staples the ticket, asks Gatekeeper to assess the DMG, a
 1. Ensure `main` is green and the version in the Xcode project matches the intended stable release.
 2. Create and push an annotated tag: `git tag -a v0.1.0 -m 'DevNotch 0.1.0' && git push origin v0.1.0`.
 3. The release job rebuilds, signs, notarizes, and publishes the DMG and checksum. A separate least-privilege job then downloads that exact published DMG and updates the Homebrew Cask.
-4. On a clean Mac, run `brew install --cask <owner>/devnotch/devnotch`, launch DevNotch, and verify Gatekeeper reports no warning.
+4. On a clean Mac, run `brew install --cask DevNNNotch/devnotch/devnotch`, launch DevNotch, and verify Gatekeeper reports no warning.
 
 Tags containing a pre-release suffix publish a GitHub pre-release and intentionally do not update Homebrew.

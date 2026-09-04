@@ -77,7 +77,7 @@ No signed public build has been published yet. The Homebrew and DMG commands bel
 ### Homebrew
 
 ```sh
-brew install --cask DevNotch/devnotch/devnotch
+brew install --cask DevNNNotch/devnotch/devnotch
 ```
 
 Homebrew verifies the release SHA-256 before installing `DevNotch.app`. Upgrade and uninstall with:
@@ -109,7 +109,7 @@ The selected upstream baseline currently requires:
 - Apple Silicon or Intel Mac
 
 ```sh
-git clone https://github.com/DevNotch/DevNotch.git
+git clone https://github.com/DevNNNotch/DevNotch.git
 cd DevNotch
 make test
 make install
@@ -212,7 +212,7 @@ boringNotch/DevNotch/
 
 ## Community
 
-The planned DevNotch GitHub Organization will host the application, the `homebrew-devnotch` tap, integration documentation, Discussions, and future adapters that contain real maintained code. Empty SDK or plugin repositories will not be created for appearance.
+The [DevNNNotch GitHub Organization](https://github.com/DevNNNotch) hosts the application, the `homebrew-devnotch` tap, integration documentation, Discussions, and future adapters that contain real maintained code. Empty SDK or plugin repositories will not be created for appearance.
 
 - Use Discussions for questions, ideas, and integration proposals.
 - Use the integration issue form for a new provider data source.

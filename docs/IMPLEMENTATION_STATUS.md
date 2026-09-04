@@ -47,7 +47,7 @@ DevNotch is currently a development branch derived from TheBoredTeam's `boring.n
 - Any verified Trae provider.
 - GPU, external-display brightness, and Bluetooth headphone battery metrics.
 - A supported Trae export API or hook. TRAE currently documents usage in its IDE and account profile, but no public machine-readable integration surface.
-- GitHub Organization, application repository, Homebrew tap, Discussions, labels, rulesets, or remote push. Organization contact and ownership details have not been supplied.
+- GitHub application repository, Homebrew tap, Discussions, labels, rulesets, or remote push. The `DevNNNotch` Organization exists, but its repositories have not been created.
 - macOS 13 support. The selected upstream baseline targets macOS 14; backport feasibility has not been established.
 
 ## Security boundaries

@@ -14,7 +14,7 @@ DevNotch welcomes focused fixes, provider adapters, documentation, tests, and ac
 Requirements currently follow the upstream application: macOS 14+, Xcode 16.4+, and Swift 6 tooling.
 
 ```sh
-git clone https://github.com/DevNotch/DevNotch.git
+git clone https://github.com/DevNNNotch/DevNotch.git
 cd DevNotch
 git switch -c feature/short-description
 swift build
