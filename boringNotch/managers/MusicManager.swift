@@ -14,12 +14,18 @@ let defaultImage: NSImage = .init(
     accessibilityDescription: "Album Art"
 )!
 
+private struct LRCLIBSearchResult: Decodable {
+    let plainLyrics: String?
+    let syncedLyrics: String?
+}
+
 class MusicManager: ObservableObject {
     // MARK: - Properties
     static let shared = MusicManager()
     private var cancellables = Set<AnyCancellable>()
     private var controllerCancellables = Set<AnyCancellable>()
     private var debounceIdleTask: Task<Void, Never>?
+    private var lyricsFetchTask: Task<Void, Never>?
 
     // Helper to check if macOS has removed support for NowPlayingController
     public private(set) var isNowPlayingDeprecated: Bool = false
@@ -51,6 +57,7 @@ class MusicManager: ObservableObject {
     @Published var currentLyrics: String = ""
     @Published var isFetchingLyrics: Bool = false
     @Published var syncedLyrics: [(time: Double, text: String)] = []
+    @Published var lyricsError: String?
     @Published var canFavoriteTrack: Bool = false
     @Published var isFavoriteTrack: Bool = false
 
@@ -341,18 +348,26 @@ class MusicManager: ObservableObject {
     }
 
     // MARK: - Lyrics
+    @MainActor
     private func fetchLyricsIfAvailable(bundleIdentifier: String?, title: String, artist: String) {
+        lyricsFetchTask?.cancel()
+
         guard Defaults[.enableLyrics], !title.isEmpty else {
-            DispatchQueue.main.async {
-                self.isFetchingLyrics = false
-                self.currentLyrics = ""
-            }
+            isFetchingLyrics = false
+            currentLyrics = ""
+            syncedLyrics = []
+            lyricsError = nil
             return
         }
 
+        isFetchingLyrics = true
+        currentLyrics = ""
+        syncedLyrics = []
+        lyricsError = nil
+
         // Prefer native Apple Music lyrics when available
         if let bundleIdentifier = bundleIdentifier, bundleIdentifier.contains("com.apple.Music") {
-            Task { @MainActor in
+            lyricsFetchTask = Task { @MainActor in
                 let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Music")
                 guard !runningApps.isEmpty else {
                     await self.fetchLyricsFromWeb(title: title, artist: artist)
@@ -385,23 +400,30 @@ class MusicManager: ObservableObject {
                     end tell
                     """
                     if let result = try await AppleScriptHelper.execute(script), let lyricsString = result.stringValue, !lyricsString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        guard !Task.isCancelled else { return }
                         self.currentLyrics = lyricsString.trimmingCharacters(in: .whitespacesAndNewlines)
                         self.isFetchingLyrics = false
                         self.syncedLyrics = []
                         return
                     }
                 } catch {
-                    // fall through to web lookup
+                    guard !Task.isCancelled else { return }
+                    NSLog("Apple Music lyrics lookup failed: \(error.localizedDescription)")
                 }
+                guard !Task.isCancelled else { return }
                 await self.fetchLyricsFromWeb(title: title, artist: artist)
             }
         } else {
-            Task { @MainActor in
-                self.isFetchingLyrics = true
-                self.currentLyrics = ""
+            lyricsFetchTask = Task { @MainActor in
                 await self.fetchLyricsFromWeb(title: title, artist: artist)
             }
         }
+    }
+
+    @MainActor
+    func refreshLyrics(force: Bool = false) {
+        guard force || (!isFetchingLyrics && currentLyrics.isEmpty) else { return }
+        fetchLyricsIfAvailable(bundleIdentifier: bundleIdentifier, title: songTitle, artist: artistName)
     }
 
     private func normalizedQuery(_ string: String) -> String {
@@ -414,49 +436,60 @@ class MusicManager: ObservableObject {
     private func fetchLyricsFromWeb(title: String, artist: String) async {
         let cleanTitle = normalizedQuery(title)
         let cleanArtist = normalizedQuery(artist)
-        guard let encodedTitle = cleanTitle.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let encodedArtist = cleanArtist.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            self.currentLyrics = ""
-            self.isFetchingLyrics = false
-            return
-        }
-
-        // LRCLIB simple search (no auth): https://lrclib.net/api/search?track_name=...&artist_name=...
-        let urlString = "https://lrclib.net/api/search?track_name=\(encodedTitle)&artist_name=\(encodedArtist)"
-        guard let url = URL(string: urlString) else {
-            self.currentLyrics = ""
-            self.isFetchingLyrics = false
-            return
-        }
-        do {
-            let (data, response) = try await URLSession.shared.data(from: url)
-            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                self.currentLyrics = ""
-                self.isFetchingLyrics = false
-                return
-            }
-            if let jsonArray = try JSONSerialization.jsonObject(with: data) as? [[String: Any]],
-               let first = jsonArray.first {
-                // Prefer plain lyrics (syncedLyrics may also be present)
-                let plain = (first["plainLyrics"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                let synced = (first["syncedLyrics"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                let resolved = plain.isEmpty ? synced : plain
-                self.currentLyrics = resolved
-                self.isFetchingLyrics = false
-                if !synced.isEmpty {
-                    self.syncedLyrics = self.parseLRC(synced)
-                } else {
-                    self.syncedLyrics = []
-                }
-            } else {
-                self.currentLyrics = ""
-                self.isFetchingLyrics = false
-                self.syncedLyrics = []
-            }
-        } catch {
+        var components = URLComponents(string: "https://lrclib.net/api/search")
+        components?.queryItems = [
+            URLQueryItem(name: "track_name", value: cleanTitle),
+            URLQueryItem(name: "artist_name", value: cleanArtist),
+        ]
+        guard let url = components?.url else {
             self.currentLyrics = ""
             self.isFetchingLyrics = false
             self.syncedLyrics = []
+            self.lyricsError = "Could not construct the lyrics request URL."
+            return
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard !Task.isCancelled else { return }
+            guard let http = response as? HTTPURLResponse else {
+                self.currentLyrics = ""
+                self.isFetchingLyrics = false
+                self.syncedLyrics = []
+                self.lyricsError = "The lyrics server returned an invalid response."
+                return
+            }
+            guard http.statusCode == 200 else {
+                self.currentLyrics = ""
+                self.isFetchingLyrics = false
+                self.syncedLyrics = []
+                self.lyricsError = "Lyrics request failed with HTTP \(http.statusCode)."
+                return
+            }
+
+            let results = try JSONDecoder().decode([LRCLIBSearchResult].self, from: data)
+            guard let first = results.first else {
+                self.currentLyrics = ""
+                self.isFetchingLyrics = false
+                self.syncedLyrics = []
+                self.lyricsError = "No matching lyrics were found for this track."
+                return
+            }
+
+            let plain = first.plainLyrics?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let synced = first.syncedLyrics?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            self.currentLyrics = plain.isEmpty ? synced : plain
+            self.syncedLyrics = synced.isEmpty ? [] : self.parseLRC(synced)
+            self.isFetchingLyrics = false
+            self.lyricsError = self.currentLyrics.isEmpty ? "The lyrics result did not contain any text." : nil
+        } catch is CancellationError {
+            return
+        } catch {
+            guard !Task.isCancelled else { return }
+            self.currentLyrics = ""
+            self.isFetchingLyrics = false
+            self.syncedLyrics = []
+            self.lyricsError = "Lyrics request failed: \(error.localizedDescription)"
         }
     }
 
@@ -488,8 +521,8 @@ class MusicManager: ObservableObject {
         return result.sorted { $0.0 < $1.0 }
     }
 
-    func lyricLine(at elapsed: Double) -> String {
-        guard !syncedLyrics.isEmpty else { return currentLyrics }
+    func lyricIndex(at elapsed: Double) -> Int? {
+        guard !syncedLyrics.isEmpty else { return nil }
         // Binary search for last line with time <= elapsed
         var low = 0
         var high = syncedLyrics.count - 1
@@ -503,7 +536,7 @@ class MusicManager: ObservableObject {
                 high = mid - 1
             }
         }
-        return syncedLyrics[idx].text
+        return idx
     }
 
     private func triggerFlipAnimation() {

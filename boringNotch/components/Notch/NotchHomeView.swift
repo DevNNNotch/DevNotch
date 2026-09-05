@@ -153,39 +153,6 @@ struct MusicControlsView: View {
                 frameWidth: width
             )
             .fontWeight(.medium)
-            if Defaults[.enableLyrics] {
-                TimelineView(.animation(minimumInterval: 0.25)) { timeline in
-                    let currentElapsed: Double = {
-                        guard musicManager.isPlaying else { return musicManager.elapsedTime }
-                        let delta = timeline.date.timeIntervalSince(musicManager.timestampDate)
-                        let progressed = musicManager.elapsedTime + (delta * musicManager.playbackRate)
-                        return min(max(progressed, 0), musicManager.songDuration)
-                    }()
-                    let line: String = {
-                        if musicManager.isFetchingLyrics { return "Loading lyrics…" }
-                        if !musicManager.syncedLyrics.isEmpty {
-                            return musicManager.lyricLine(at: currentElapsed)
-                        }
-                        let trimmed = musicManager.currentLyrics.trimmingCharacters(in: .whitespacesAndNewlines)
-                        return trimmed.isEmpty ? "No lyrics found" : trimmed.replacingOccurrences(of: "\n", with: " ")
-                    }()
-                    let isPersian = line.unicodeScalars.contains { scalar in
-                        let v = scalar.value
-                        return v >= 0x0600 && v <= 0x06FF
-                    }
-                    MarqueeText(
-                        .constant(line),
-                        font: .subheadline,
-                        nsFont: .subheadline,
-                        textColor: musicManager.isFetchingLyrics ? .gray.opacity(0.7) : .gray,
-                        frameWidth: width
-                    )
-                    .font(isPersian ? .custom("Vazirmatn-Regular", size: NSFont.preferredFont(forTextStyle: .subheadline).pointSize) : .subheadline)
-                    .lineLimit(1)
-                    .opacity(musicManager.isPlaying ? 1 : 0)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                }
-            }
         }
     }
 
@@ -416,6 +383,159 @@ struct VolumeControlView: View {
     }
 }
 
+private struct LiveLyricsView: View {
+    @ObservedObject private var musicManager = MusicManager.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private let visibleOffsets = Array(-2...2)
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: musicManager.isPlaying ? 0.2 : nil)) { timeline in
+            lyricsContent(elapsed: musicManager.estimatedPlaybackPosition(at: timeline.date))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .onAppear {
+            musicManager.refreshLyrics()
+        }
+    }
+
+    @ViewBuilder
+    private func lyricsContent(elapsed: TimeInterval) -> some View {
+        if musicManager.isFetchingLyrics {
+            statusView(icon: "waveform", title: "Loading lyrics", detail: "Searching synchronized lyrics")
+        } else if let error = musicManager.lyricsError {
+            lyricsErrorView(error)
+        } else if let currentIndex = musicManager.lyricIndex(at: elapsed) {
+            syncedLyrics(currentIndex: currentIndex)
+        } else if !plainLyrics.isEmpty {
+            unsyncedLyrics
+        } else {
+            statusView(icon: "text.quote", title: "No lyrics", detail: "Play a track to load lyrics")
+        }
+    }
+
+    private func syncedLyrics(currentIndex: Int) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(visibleOffsets, id: \.self) { offset in
+                lyricRow(index: currentIndex + offset, offset: offset)
+            }
+        }
+        .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: currentIndex)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Current lyric: \(musicManager.syncedLyrics[currentIndex].text)")
+    }
+
+    private func lyricRow(index: Int, offset: Int) -> some View {
+        let isCurrent = offset == 0
+        let rowHeight: CGFloat = isCurrent ? 28 : 18
+
+        return HStack(spacing: 7) {
+            if isCurrent {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(accentColor)
+                    .frame(width: 9)
+            } else {
+                Color.clear.frame(width: 9, height: 1)
+            }
+
+            if musicManager.syncedLyrics.indices.contains(index) {
+                Text(musicManager.syncedLyrics[index].text)
+                    .font(.system(size: isCurrent ? 15 : 12.5, weight: isCurrent ? .semibold : .medium))
+                    .foregroundStyle(isCurrent ? Color.white : Color.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                    .id(index)
+                    .transition(
+                        reduceMotion
+                            ? .opacity
+                            : .asymmetric(
+                                insertion: .move(edge: .bottom).combined(with: .opacity),
+                                removal: .move(edge: .top).combined(with: .opacity)
+                            )
+                    )
+            }
+        }
+        .frame(height: rowHeight, alignment: .leading)
+        .opacity(isCurrent ? 1 : (abs(offset) == 1 ? 0.62 : 0.32))
+    }
+
+    private var unsyncedLyrics: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("UNSYNCED LYRICS")
+                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                .foregroundStyle(.secondary)
+
+            ForEach(Array(plainLyrics.prefix(4).enumerated()), id: \.offset) { _, line in
+                Text(line)
+                    .font(.system(size: 12.5, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.78))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+        }
+        .frame(maxHeight: .infinity, alignment: .center)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func statusView(icon: String, title: String, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(accentColor)
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+            Text(detail)
+                .font(.system(size: 10.5, weight: .medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func lyricsErrorView(_ error: String) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(accentColor)
+                Spacer()
+                Button {
+                    musicManager.refreshLyrics(force: true)
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 12, weight: .semibold))
+                        .frame(width: 24, height: 24)
+                }
+                .buttonStyle(.plain)
+                .help("Retry lyrics")
+                .accessibilityLabel("Retry lyrics")
+            }
+            Text("Lyrics unavailable")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+            Text(error)
+                .font(.system(size: 10.5, weight: .medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+
+    private var plainLyrics: [String] {
+        musicManager.currentLyrics
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private var accentColor: Color {
+        Color(nsColor: musicManager.avgColor).ensureMinimumBrightness(factor: 0.72)
+    }
+}
+
 // MARK: - Main View
 
 struct NotchHomeView: View {
@@ -423,6 +543,7 @@ struct NotchHomeView: View {
     @ObservedObject var webcamManager = WebcamManager.shared
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
     @ObservedObject var coordinator = BoringViewCoordinator.shared
+    @Default(.enableLyrics) private var enableLyrics
     let albumArtNamespace: Namespace.ID
 
     var body: some View {
@@ -440,10 +561,25 @@ struct NotchHomeView: View {
     }
 
     private var mainContent: some View {
-        HStack(alignment: .top, spacing: (shouldShowCamera && Defaults[.showCalendar]) ? 10 : 15) {
-            MusicPlayerView(albumArtNamespace: albumArtNamespace)
+        let spacing: CGFloat = enableLyrics
+            ? 12
+            : ((shouldShowCamera && Defaults[.showCalendar]) ? 10 : 15)
 
-            if Defaults[.showCalendar] {
+        return HStack(alignment: .top, spacing: spacing) {
+            MusicPlayerView(albumArtNamespace: albumArtNamespace)
+                .frame(maxWidth: .infinity)
+                .layoutPriority(1)
+
+            if enableLyrics {
+                Rectangle()
+                    .fill(.white.opacity(0.12))
+                    .frame(width: 1, height: 128)
+                    .padding(.vertical, 4)
+
+                LiveLyricsView()
+                    .frame(width: 252, height: 136)
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+            } else if Defaults[.showCalendar] {
                 CalendarView()
                     .frame(width: shouldShowCamera ? 170 : 215)
                     .onHover { isHovering in
@@ -453,7 +589,7 @@ struct NotchHomeView: View {
                     .transition(.opacity)
             }
 
-            if shouldShowCamera {
+            if shouldShowCamera && !enableLyrics {
                 CameraPreviewView(webcamManager: webcamManager)
                     .scaledToFit()
                     .opacity(vm.notchState == .closed ? 0 : 1)
