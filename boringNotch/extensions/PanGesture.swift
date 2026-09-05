@@ -61,7 +61,7 @@ private struct ScrollMonitor: NSViewRepresentable {
         private var monitor: Any?
         private var accumulated: CGFloat = 0
         private var active = false
-            private var endTask: Task<Void, Never>?
+        private var endTask: Task<Void, Never>?
         private let noiseThreshold: CGFloat = 0.2
 
         init(direction: PanDirection, threshold: CGFloat, action: @escaping (CGFloat, NSEvent.Phase) -> Void) {
@@ -77,14 +77,17 @@ private struct ScrollMonitor: NSViewRepresentable {
                 // If no new scroll event arrives within this window, consider the gesture ended.
                 try? await Task.sleep(for: .milliseconds(300))
                 guard !Task.isCancelled else { return }
-                if active {
-                    action(accumulated.magnitude, .ended)
-                } else {
-                    action(0, .ended)
-                }
-                active = false
-                accumulated = 0
+                finishGesture()
             }
+        }
+
+        private func finishGesture() {
+            endTask?.cancel()
+            endTask = nil
+            let translation = active ? accumulated.magnitude : 0
+            active = false
+            accumulated = 0
+            action(translation, .ended)
         }
 
         func installMonitor(on view: NSView) {
@@ -108,16 +111,14 @@ private struct ScrollMonitor: NSViewRepresentable {
         }
 
         private func handleScroll(_ event: NSEvent) {
-            if event.phase == .ended || event.momentumPhase == .ended {
-                if active {
-                    action(accumulated.magnitude, .ended)
-                } else {
-                    action(0, .ended)
-                }
-                active = false
-                accumulated = 0
+            if event.phase == .ended {
+                finishGesture()
                 return
             }
+
+            // Momentum belongs to the physical gesture that just ended. Ignoring it
+            // guarantees one completed navigation action per two-finger swipe.
+            guard event.momentumPhase.isEmpty else { return }
 
             // Only consider scroll events that are primarily along the configured axis.
             let absDX = abs(event.scrollingDeltaX)

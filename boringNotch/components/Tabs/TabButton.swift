@@ -7,15 +7,21 @@
 
 import SwiftUI
 
+enum TabIcon {
+    case system(String)
+    case asset(String)
+}
+
 struct TabButton: View {
     let label: String
-    let icon: String
+    let icon: TabIcon
     let selected: Bool
     let onClick: () -> Void
     
     var body: some View {
         Button(action: onClick) {
-            Image(systemName: icon)
+            iconView
+                .frame(width: 18, height: 18)
                 .padding(.horizontal, 15)
                 .contentShape(Capsule())
         }
@@ -24,10 +30,23 @@ struct TabButton: View {
         .accessibilityLabel(label)
         .accessibilityValue(selected ? "Selected" : "")
     }
+
+    @ViewBuilder
+    private var iconView: some View {
+        switch icon {
+        case .system(let name):
+            Image(systemName: name)
+        case .asset(let name):
+            Image(name)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+        }
+    }
 }
 
 #Preview {
-    TabButton(label: "Home", icon: "tray.fill", selected: true) {
+    TabButton(label: "Home", icon: .system("tray.fill"), selected: true) {
         print("Tapped")
     }
 }

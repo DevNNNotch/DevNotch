@@ -272,7 +272,7 @@ struct ContentView: View {
                             }
                             .frame(width: 76, alignment: .trailing)
                         }
-                        .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
+                        .frame(height: vm.effectiveClosedNotchHeight + (isHovering ? 8 : 0), alignment: .center)
                       } else if coordinator.sneakPeek.show && Defaults[.inlineHUD] && (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && vm.notchState == .closed {
                           InlineHUD(type: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
                               .transition(.opacity)
@@ -377,7 +377,7 @@ struct ContentView: View {
                 MinimalFaceFeatures()
             }
         }.frame(
-            height: vm.effectiveClosedNotchHeight,
+            height: vm.effectiveClosedNotchHeight + (isHovering ? 8 : 0),
             alignment: .center
         )
     }
@@ -442,7 +442,7 @@ struct ContentView: View {
                         && Defaults[.sneakPeekStyles] == .inline)
                         ? 380
                         : vm.closedNotchSize.width
-                            + -cornerRadiusInsets.closed.top
+                            + (isHovering ? 8 : -cornerRadiusInsets.closed.top)
                 )
 
             HStack {
@@ -467,18 +467,18 @@ struct ContentView: View {
             .frame(
                 width: max(
                     0,
-                    vm.effectiveClosedNotchHeight - 12
+                    vm.effectiveClosedNotchHeight - (isHovering ? 0 : 12)
                         + gestureProgress / 2
                 ),
                 height: max(
                     0,
-                    vm.effectiveClosedNotchHeight - 12
+                    vm.effectiveClosedNotchHeight - (isHovering ? 0 : 12)
                 ),
                 alignment: .center
             )
         }
         .frame(
-            height: vm.effectiveClosedNotchHeight,
+            height: vm.effectiveClosedNotchHeight + (isHovering ? 8 : 0),
             alignment: .center
         )
     }

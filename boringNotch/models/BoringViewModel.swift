@@ -190,10 +190,8 @@ class BoringViewModel: NSObject, ObservableObject {
     }
 
     func open() {
-        withAnimation(animationLibrary.animation) {
-            self.notchSize = openNotchSize
-            self.notchState = .open
-        }
+        self.notchSize = openNotchSize
+        self.notchState = .open
         
         // Force music information update when notch is opened
         MusicManager.shared.forceUpdate()
@@ -204,17 +202,15 @@ class BoringViewModel: NSObject, ObservableObject {
         if SharingStateManager.shared.preventNotchClose {
             return
         }
-        withAnimation(animationLibrary.animation) {
-            self.notchSize = getClosedNotchSize(screenUUID: self.screenUUID)
-            self.closedNotchSize = self.notchSize
-            self.notchState = .closed
-            self.isBatteryPopoverActive = false
-            self.coordinator.sneakPeek.show = false
-            self.edgeAutoOpenActive = false
+        self.notchSize = getClosedNotchSize(screenUUID: self.screenUUID)
+        self.closedNotchSize = self.notchSize
+        self.notchState = .closed
+        self.isBatteryPopoverActive = false
+        self.coordinator.sneakPeek.show = false
+        self.edgeAutoOpenActive = false
 
-            if !coordinator.openLastTabByDefault {
-                coordinator.currentView = Defaults[.developerWorkspaceEnabled] ? .developer : .home
-            }
+        if !coordinator.openLastTabByDefault {
+            coordinator.currentView = Defaults[.developerWorkspaceEnabled] ? .developer : .home
         }
     }
 
