@@ -22,11 +22,9 @@ struct UsageDashboardView: View {
             header(at: now)
                 .frame(height: 34)
 
-            horizontalDivider
-
             HStack(spacing: 0) {
                 overview(totals: totals, providers: providers)
-                    .frame(width: 188)
+                    .frame(width: 174)
 
                 verticalDivider
 
@@ -38,9 +36,9 @@ struct UsageDashboardView: View {
 
                     providerList(providers, samples: samples)
                 }
-                .padding(.leading, 14)
+                .padding(.leading, 18)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 8)
 
             horizontalDivider
 
@@ -69,11 +67,7 @@ struct UsageDashboardView: View {
                     }
                 }
             } label: {
-                HStack(spacing: 4) {
-                    Text(selectedRange.label)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 7, weight: .bold))
-                }
+                Text(selectedRange.label)
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
             }
             .menuStyle(.borderlessButton)
@@ -83,7 +77,7 @@ struct UsageDashboardView: View {
 
             status(at: now)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 8)
     }
 
     private func status(at now: Date) -> some View {
@@ -136,7 +130,7 @@ struct UsageDashboardView: View {
             .foregroundStyle(.secondary)
         }
         .padding(.vertical, 8)
-        .padding(.trailing, 14)
+        .padding(.trailing, 30)
     }
 
     private func platformMix(_ providers: [UsageAggregator.ProviderTotal]) -> some View {
@@ -291,7 +285,7 @@ struct UsageDashboardView: View {
             Text("UPDATED \(updatedAge(at: now))")
                 .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 8)
         .font(.system(size: 7.5, weight: .medium, design: .monospaced))
     }
 
