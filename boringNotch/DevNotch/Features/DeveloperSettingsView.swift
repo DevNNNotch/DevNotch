@@ -42,7 +42,7 @@ struct DeveloperSettingsView: View {
             Section("Token client connections") {
                 connectionRow(
                     "Codex",
-                    icon: "chevron.left.forwardslash.chevron.right",
+                    icon: Image("ProviderCodex").renderingMode(.template),
                     source: "Local token_count metadata from a user-selected sessions folder",
                     status: workspace.codexStatus
                 ) {
@@ -66,7 +66,7 @@ struct DeveloperSettingsView: View {
 
                 connectionRow(
                     "OpenAI API",
-                    icon: "circle.hexagongrid.fill",
+                    icon: Image("ProviderOpenAI").renderingMode(.template),
                     source: "Official organization Usage API",
                     status: workspace.openAIStatus
                 ) {
@@ -75,7 +75,7 @@ struct DeveloperSettingsView: View {
 
                 connectionRow(
                     "Claude Code",
-                    icon: "sun.max.fill",
+                    icon: Image("ProviderClaude").renderingMode(.template),
                     source: "Official status-line adapter",
                     status: workspace.claudeCodeStatus
                 ) {
@@ -84,7 +84,7 @@ struct DeveloperSettingsView: View {
 
                 connectionRow(
                     "Trae",
-                    icon: "sparkles",
+                    icon: Image("ProviderTrae").renderingMode(.template),
                     source: "Client-reported usage through the local API",
                     status: workspace.traeStatus
                 ) {
@@ -93,7 +93,7 @@ struct DeveloperSettingsView: View {
 
                 connectionRow(
                     "Other clients",
-                    icon: "network",
+                    icon: Image(systemName: "network"),
                     source: "Authenticated endpoint at 127.0.0.1:54731",
                     status: workspace.localAPIStatus
                 ) {
@@ -172,14 +172,20 @@ struct DeveloperSettingsView: View {
 
     private func connectionRow<Actions: View>(
         _ name: String,
-        icon: String,
+        icon: Image,
         source: String,
         status: ProviderStatus,
         @ViewBuilder actions: () -> Actions
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
-                Label(name, systemImage: icon)
+                icon
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 22, height: 22)
+                    .foregroundStyle(.primary)
+                    .accessibilityHidden(true)
+                Text(name)
                     .fontWeight(.semibold)
                 Spacer()
                 actions()
