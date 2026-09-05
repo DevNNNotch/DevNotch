@@ -27,6 +27,7 @@ The project reports only data it can identify and verify. Missing credentials, u
 - Ollama and vLLM model endpoint health checks.
 - Authenticated `127.0.0.1` API for builds, tasks, logs, and client-reported token events.
 - Explicit integration states for Codex, Claude Code, and Trae.
+- A token client connection center in **Settings > Developer**, including native local Codex session collection.
 
 See [Implementation Status](docs/IMPLEMENTATION_STATUS.md) for what has been verified, what still requires full Xcode, and which providers need an authoritative data source.
 
@@ -145,7 +146,9 @@ Clipboard text is sent only after the user selects an action. Common private-key
 
 OpenAI credentials are stored in Keychain. DevNotch does not calculate cost from a hard-coded pricing table and does not label API usage as Codex subscription usage.
 
-To report local Codex session totals without exposing prompts or responses:
+Choose the Codex `sessions` folder in **Settings > Developer > Token client connections** to grant sandboxed read access. DevNotch stores a security-scoped bookmark, scans token metadata every 30 seconds, and never reads prompt or response content.
+
+The command-line adapter remains available for remote or custom setups:
 
 ```sh
 export DEVNOTCH_API_TOKEN='value-copied-from-keychain'

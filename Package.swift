@@ -27,6 +27,7 @@ let package = Package(
                 "Services/KeychainStore.swift",
                 "Services/SystemMonitor.swift",
                 "Services/UsageProvider.swift",
+                "Services/CodexUsageCollector.swift",
                 "Services/OpenAIUsageProvider.swift",
                 "Services/OllamaService.swift",
                 "Services/VLLMService.swift",

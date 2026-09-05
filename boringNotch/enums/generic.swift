@@ -27,8 +27,9 @@ public enum NotchState {
 public enum NotchViews: CaseIterable, Hashable {
     case developer
     case home
-    case shelf
     case usage
+
+    static let primaryViews = allCases
 }
 
 enum SettingsEnum {

@@ -66,9 +66,7 @@ class BoringViewCoordinator: ObservableObject {
         didSet {
             if !alwaysShowTabs {
                 openLastTabByDefault = false
-                if ShelfStateViewModel.shared.isEmpty || !Defaults[.openShelfByDefault] {
-                    currentView = Defaults[.developerWorkspaceEnabled] ? .developer : .home
-                }
+                currentView = Defaults[.developerWorkspaceEnabled] ? .developer : .home
             }
         }
     }

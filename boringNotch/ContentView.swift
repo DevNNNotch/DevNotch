@@ -25,8 +25,6 @@ struct ContentView: View {
     @ObservedObject var volumeManager = VolumeManager.shared
     @State private var hoverTask: Task<Void, Never>?
     @State private var isHovering: Bool = false
-    @State private var anyDropDebounceTask: Task<Void, Never>?
-
     @State private var gestureProgress: CGFloat = .zero
 
     private var tabSwipeThreshold: CGFloat {
@@ -227,35 +225,8 @@ struct ContentView: View {
             anchor: .top
         )
         .animation(.smooth, value: gestureProgress)
-        .background(dragDetector)
         .preferredColorScheme(.dark)
         .environmentObject(vm)
-        .onChange(of: vm.anyDropZoneTargeting) { _, isTargeted in
-            anyDropDebounceTask?.cancel()
-
-            if isTargeted {
-                if vm.notchState == .closed {
-                    coordinator.currentView = .shelf
-                    doOpen()
-                }
-                return
-            }
-
-            anyDropDebounceTask = Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(500))
-                guard !Task.isCancelled else { return }
-
-                if vm.dropEvent {
-                    vm.dropEvent = false
-                    return
-                }
-
-                vm.dropEvent = false
-                if !SharingStateManager.shared.preventNotchClose {
-                    vm.close()
-                }
-            }
-        }
     }
 
     @ViewBuilder
@@ -370,8 +341,6 @@ struct ContentView: View {
                             }
                         case .home:
                             NotchHomeView(albumArtNamespace: albumArtNamespace)
-                        case .shelf:
-                            ShelfView()
                         case .usage:
                             UsageDashboardView {
                                 coordinator.selectView(.developer)
@@ -516,22 +485,6 @@ struct ContentView: View {
         )
     }
 
-    @ViewBuilder
-    var dragDetector: some View {
-        if Defaults[.boringShelf] && vm.notchState == .closed {
-            Color.clear
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(Rectangle())
-        .onDrop(of: [.fileURL, .url, .utf8PlainText, .plainText, .data], isTargeted: $vm.dragDetectorTargeting) { providers in
-            vm.dropEvent = true
-            ShelfStateViewModel.shared.load(providers)
-            return true
-        }
-        } else {
-            EmptyView()
-        }
-    }
-
     private func doOpen() {
         withAnimation(animationSpring) {
             vm.open()
@@ -653,14 +606,14 @@ struct ContentView: View {
         guard vm.notchState == .open,
               phase == .ended,
               translation >= tabSwipeThreshold,
-              let currentIndex = NotchViews.allCases.firstIndex(of: coordinator.currentView)
+              let currentIndex = NotchViews.primaryViews.firstIndex(of: coordinator.currentView)
         else { return }
 
         let destinationIndex = currentIndex + (direction == .left ? 1 : -1)
-        guard NotchViews.allCases.indices.contains(destinationIndex) else { return }
+        guard NotchViews.primaryViews.indices.contains(destinationIndex) else { return }
 
         withAnimation(.smooth(duration: 0.28 / developerAnimationSpeed)) {
-            coordinator.selectView(NotchViews.allCases[destinationIndex])
+            coordinator.selectView(NotchViews.primaryViews[destinationIndex])
         }
     }
 }

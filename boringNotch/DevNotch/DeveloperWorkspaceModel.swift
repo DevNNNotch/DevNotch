@@ -22,11 +22,11 @@ final class DeveloperWorkspaceModel: ObservableObject {
     @Published private(set) var vllmStatus = ProviderStatus(state: .unavailable, reason: "vLLM is disabled")
     @Published private(set) var localAPIStatus = ProviderStatus(state: .unavailable, reason: "Local API is disabled")
 
-    var codexStatus: ProviderStatus {
-        usageSamples.contains { $0.provider == .codex }
-            ? ProviderStatus(state: .ready, reason: "Receiving local Codex session totals. This is not subscription quota.")
-            : ProviderStatus(state: .needsConfiguration, reason: "Run Examples/codex_usage_sync.py for local session totals.")
-    }
+    @Published private(set) var codexStatus = ProviderStatus(
+        state: .needsConfiguration,
+        reason: "Connect local Codex sessions to begin collecting token totals."
+    )
+    @Published private(set) var isRefreshingCodexUsage = false
 
     var claudeCodeStatus: ProviderStatus {
         usageSamples.contains { $0.provider == .claudeCode }
@@ -50,6 +50,8 @@ final class DeveloperWorkspaceModel: ObservableObject {
     private var aiTask: Task<Void, Never>?
     private var observationTasks: [Task<Void, Never>] = []
     private var hasStarted = false
+    private var codexCollector: CodexUsageCollector?
+    private var codexCollectorDirectory: URL?
 
     private init() {
         monitor.$snapshot
@@ -68,7 +70,8 @@ final class DeveloperWorkspaceModel: ObservableObject {
         hasStarted = true
         observationTasks = [
             Task { [weak self] in await self?.observeUsage() },
-            Task { [weak self] in await self?.observeEvents() }
+            Task { [weak self] in await self?.observeEvents() },
+            Task { [weak self] in await self?.monitorCodexUsage() }
         ]
         applyConfiguration()
         Task { [weak self] in
@@ -103,6 +106,7 @@ final class DeveloperWorkspaceModel: ObservableObject {
             clipboardContext = nil
         }
         configureLocalAPI()
+        Task { [weak self] in await self?.refreshCodexUsage() }
     }
 
     func storeOpenAIAdminKey(_ value: String) throws {
@@ -137,6 +141,115 @@ final class DeveloperWorkspaceModel: ObservableObject {
         } catch {
             openAIStatus = ProviderStatus(state: .failed, reason: error.localizedDescription)
         }
+    }
+
+    func refreshCodexUsage() async {
+        guard Defaults[.developerWorkspaceEnabled], Defaults[.developerCodexUsageEnabled] else {
+            isRefreshingCodexUsage = false
+            await usageStore.replace([], for: .codex)
+            codexStatus = ProviderStatus(
+                state: .needsConfiguration,
+                reason: "Connect local Codex sessions to begin collecting token totals."
+            )
+            return
+        }
+        guard !isRefreshingCodexUsage else { return }
+
+        isRefreshingCodexUsage = true
+        codexStatus = ProviderStatus(state: .needsConfiguration, reason: "Scanning selected Codex sessions folder.")
+        defer { isRefreshingCodexUsage = false }
+
+        do {
+            guard let bookmark = Defaults[.developerCodexSessionsBookmark] else {
+                throw UsageProviderError.invalidConfiguration(
+                    "Choose the Codex sessions folder to grant DevNotch read access."
+                )
+            }
+            var isStale = false
+            let sessionsDirectory = try URL(
+                resolvingBookmarkData: bookmark,
+                options: [.withSecurityScope],
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            )
+            guard sessionsDirectory.startAccessingSecurityScopedResource() else {
+                throw UsageProviderError.invalidConfiguration(
+                    "macOS denied access to the selected Codex sessions folder. Choose the folder again."
+                )
+            }
+            defer { sessionsDirectory.stopAccessingSecurityScopedResource() }
+            if isStale {
+                Defaults[.developerCodexSessionsBookmark] = try sessionsDirectory.bookmarkData(
+                    options: [.withSecurityScope],
+                    includingResourceValuesForKeys: nil,
+                    relativeTo: nil
+                )
+            }
+
+            let collector: CodexUsageCollector
+            if codexCollectorDirectory == sessionsDirectory, let existing = codexCollector {
+                collector = existing
+            } else {
+                collector = CodexUsageCollector(sessionsDirectory: sessionsDirectory)
+                codexCollector = collector
+                codexCollectorDirectory = sessionsDirectory
+            }
+            let startDate = Date().addingTimeInterval(-604_800)
+            let samples = try await Task.detached(priority: .utility) {
+                try collector.collect(since: startDate)
+            }.value
+            await usageStore.replace(samples, for: .codex)
+            codexStatus = ProviderStatus(
+                state: .ready,
+                reason: samples.isEmpty
+                    ? "Connected; no Codex token_count events were found in the last 7 days."
+                    : "Connected to \(samples.count) local Codex session(s). This is not subscription quota."
+            )
+        } catch {
+            codexStatus = ProviderStatus(state: .failed, reason: error.localizedDescription)
+        }
+    }
+
+    func bindCodexSessionsDirectory(_ directory: URL) throws {
+        let didStartAccessing = directory.startAccessingSecurityScopedResource()
+        guard didStartAccessing else {
+            throw UsageProviderError.invalidConfiguration(
+                "macOS denied access to the selected Codex folder."
+            )
+        }
+        defer { directory.stopAccessingSecurityScopedResource() }
+
+        let sessionsDirectory = directory.lastPathComponent == ".codex"
+            ? directory.appendingPathComponent("sessions", isDirectory: true)
+            : directory
+        guard sessionsDirectory.lastPathComponent == "sessions" else {
+            throw UsageProviderError.invalidConfiguration(
+                "Choose the .codex folder or its sessions subfolder."
+            )
+        }
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: sessionsDirectory.path, isDirectory: &isDirectory),
+              isDirectory.boolValue
+        else {
+            throw UsageProviderError.invalidConfiguration(
+                "The selected Codex sessions location is not a readable directory: \(sessionsDirectory.path)"
+            )
+        }
+        Defaults[.developerCodexSessionsBookmark] = try sessionsDirectory.bookmarkData(
+            options: [.withSecurityScope],
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+        Defaults[.developerCodexUsageEnabled] = true
+        codexStatus = ProviderStatus(state: .needsConfiguration, reason: "Scanning selected Codex sessions folder.")
+    }
+
+    func disconnectCodexUsage() {
+        Defaults[.developerCodexUsageEnabled] = false
+        Defaults[.developerCodexSessionsBookmark] = nil
+        codexCollector = nil
+        codexCollectorDirectory = nil
+        Task { [weak self] in await self?.refreshCodexUsage() }
     }
 
     func refreshOllamaStatus() async {
@@ -266,6 +379,17 @@ final class DeveloperWorkspaceModel: ObservableObject {
         for await values in await eventStore.updates() {
             guard !Task.isCancelled else { return }
             events = values
+        }
+    }
+
+    private func monitorCodexUsage() async {
+        while !Task.isCancelled {
+            do {
+                try await Task.sleep(for: .seconds(30))
+            } catch {
+                return
+            }
+            await refreshCodexUsage()
         }
     }
 
