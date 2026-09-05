@@ -14,11 +14,6 @@ let defaultImage: NSImage = .init(
     accessibilityDescription: "Album Art"
 )!
 
-private struct LRCLIBSearchResult: Decodable {
-    let plainLyrics: String?
-    let syncedLyrics: String?
-}
-
 class MusicManager: ObservableObject {
     // MARK: - Properties
     static let shared = MusicManager()
@@ -58,6 +53,7 @@ class MusicManager: ObservableObject {
     @Published var isFetchingLyrics: Bool = false
     @Published var syncedLyrics: [(time: Double, text: String)] = []
     @Published var lyricsError: String?
+    @Published var isInstrumental: Bool = false
     @Published var canFavoriteTrack: Bool = false
     @Published var isFavoriteTrack: Bool = false
 
@@ -357,6 +353,7 @@ class MusicManager: ObservableObject {
             currentLyrics = ""
             syncedLyrics = []
             lyricsError = nil
+            isInstrumental = false
             return
         }
 
@@ -364,6 +361,7 @@ class MusicManager: ObservableObject {
         currentLyrics = ""
         syncedLyrics = []
         lyricsError = nil
+        isInstrumental = false
 
         // Prefer native Apple Music lyrics when available
         if let bundleIdentifier = bundleIdentifier, bundleIdentifier.contains("com.apple.Music") {
@@ -404,6 +402,7 @@ class MusicManager: ObservableObject {
                         self.currentLyrics = lyricsString.trimmingCharacters(in: .whitespacesAndNewlines)
                         self.isFetchingLyrics = false
                         self.syncedLyrics = []
+                        self.isInstrumental = false
                         return
                     }
                 } catch {
@@ -445,6 +444,7 @@ class MusicManager: ObservableObject {
             self.currentLyrics = ""
             self.isFetchingLyrics = false
             self.syncedLyrics = []
+            self.isInstrumental = false
             self.lyricsError = "Could not construct the lyrics request URL."
             return
         }
@@ -456,6 +456,7 @@ class MusicManager: ObservableObject {
                 self.currentLyrics = ""
                 self.isFetchingLyrics = false
                 self.syncedLyrics = []
+                self.isInstrumental = false
                 self.lyricsError = "The lyrics server returned an invalid response."
                 return
             }
@@ -463,6 +464,7 @@ class MusicManager: ObservableObject {
                 self.currentLyrics = ""
                 self.isFetchingLyrics = false
                 self.syncedLyrics = []
+                self.isInstrumental = false
                 self.lyricsError = "Lyrics request failed with HTTP \(http.statusCode)."
                 return
             }
@@ -472,7 +474,17 @@ class MusicManager: ObservableObject {
                 self.currentLyrics = ""
                 self.isFetchingLyrics = false
                 self.syncedLyrics = []
+                self.isInstrumental = false
                 self.lyricsError = "No matching lyrics were found for this track."
+                return
+            }
+
+            if first.instrumental {
+                self.currentLyrics = ""
+                self.syncedLyrics = []
+                self.isFetchingLyrics = false
+                self.isInstrumental = true
+                self.lyricsError = nil
                 return
             }
 
@@ -481,6 +493,7 @@ class MusicManager: ObservableObject {
             self.currentLyrics = plain.isEmpty ? synced : plain
             self.syncedLyrics = synced.isEmpty ? [] : self.parseLRC(synced)
             self.isFetchingLyrics = false
+            self.isInstrumental = false
             self.lyricsError = self.currentLyrics.isEmpty ? "The lyrics result did not contain any text." : nil
         } catch is CancellationError {
             return
@@ -489,6 +502,7 @@ class MusicManager: ObservableObject {
             self.currentLyrics = ""
             self.isFetchingLyrics = false
             self.syncedLyrics = []
+            self.isInstrumental = false
             self.lyricsError = "Lyrics request failed: \(error.localizedDescription)"
         }
     }

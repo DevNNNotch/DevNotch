@@ -27,6 +27,7 @@ let package = Package(
                 "Models/DeveloperDefaults.swift",
                 "Models/NotchNavigation.swift",
                 "Models/CodexActivity.swift",
+                "Models/LyricsSearchResult.swift",
                 "Services/KeychainStore.swift",
                 "Services/SystemMonitor.swift",
                 "Services/UsageProvider.swift",

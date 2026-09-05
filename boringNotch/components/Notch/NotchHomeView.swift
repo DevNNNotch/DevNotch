@@ -403,6 +403,12 @@ private struct LiveLyricsView: View {
     private func lyricsContent(elapsed: TimeInterval) -> some View {
         if musicManager.isFetchingLyrics {
             statusView(icon: "waveform", title: "Loading lyrics", detail: "Searching synchronized lyrics")
+        } else if musicManager.isInstrumental {
+            statusView(
+                icon: "music.note",
+                title: "Please enjoy",
+                detail: "This song is an instrumental with no lyrics."
+            )
         } else if let error = musicManager.lyricsError {
             lyricsErrorView(error)
         } else if let currentIndex = musicManager.lyricIndex(at: elapsed) {
@@ -478,7 +484,11 @@ private struct LiveLyricsView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func statusView(icon: String, title: String, detail: String) -> some View {
+    private func statusView(
+        icon: String,
+        title: LocalizedStringKey,
+        detail: LocalizedStringKey
+    ) -> some View {
         VStack(alignment: .leading, spacing: 7) {
             Image(systemName: icon)
                 .font(.system(size: 15, weight: .medium))
