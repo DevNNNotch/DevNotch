@@ -29,6 +29,10 @@ struct ContentView: View {
 
     @State private var gestureProgress: CGFloat = .zero
 
+    private var tabSwipeThreshold: CGFloat {
+        max(40, Defaults[.gestureSensitivity] * 0.35)
+    }
+
     @State private var haptics: Bool = false
 
     @Namespace var albumArtNamespace
@@ -147,6 +151,15 @@ struct ContentView: View {
                         view
                             .panGesture(direction: .up) { translation, phase in
                                 handleUpGesture(translation: translation, phase: phase)
+                            }
+                    }
+                    .conditionalModifier(Defaults[.enableGestures] && vm.notchState == .open) { view in
+                        view
+                            .panGesture(direction: .left, threshold: tabSwipeThreshold) { translation, phase in
+                                handleTabSwipe(direction: .left, translation: translation, phase: phase)
+                            }
+                            .panGesture(direction: .right, threshold: tabSwipeThreshold) { translation, phase in
+                                handleTabSwipe(direction: .right, translation: translation, phase: phase)
                             }
                     }
                     .onReceive(NotificationCenter.default.publisher(for: .sharingDidFinish)) { _ in
@@ -347,14 +360,18 @@ struct ContentView: View {
               .zIndex(2)
             if vm.notchState == .open {
                 VStack {
-                    switch coordinator.currentView {
-                    case .developer:
-                        DeveloperDashboardView()
-                    case .home:
-                        NotchHomeView(albumArtNamespace: albumArtNamespace)
-                    case .shelf:
-                        ShelfView()
+                    Group {
+                        switch coordinator.currentView {
+                        case .developer:
+                            DeveloperDashboardView()
+                        case .home:
+                            NotchHomeView(albumArtNamespace: albumArtNamespace)
+                        case .shelf:
+                            ShelfView()
+                        }
                     }
+                    .id(coordinator.currentView)
+                    .transition(tabTransition)
                 }
                 .transition(
                     .scale(scale: 0.8, anchor: .top)
@@ -612,6 +629,30 @@ struct ContentView: View {
             if Defaults[.enableHaptics] {
                 haptics.toggle()
             }
+        }
+    }
+
+    private var tabTransition: AnyTransition {
+        let insertionEdge: Edge = coordinator.viewTransitionDirection == .left ? .trailing : .leading
+        let removalEdge: Edge = coordinator.viewTransitionDirection == .left ? .leading : .trailing
+        return .asymmetric(
+            insertion: .move(edge: insertionEdge).combined(with: .opacity),
+            removal: .move(edge: removalEdge).combined(with: .opacity)
+        )
+    }
+
+    private func handleTabSwipe(direction: PanDirection, translation: CGFloat, phase: NSEvent.Phase) {
+        guard vm.notchState == .open,
+              phase == .ended,
+              translation >= tabSwipeThreshold,
+              let currentIndex = NotchViews.allCases.firstIndex(of: coordinator.currentView)
+        else { return }
+
+        let destinationIndex = currentIndex + (direction == .left ? 1 : -1)
+        guard NotchViews.allCases.indices.contains(destinationIndex) else { return }
+
+        withAnimation(.smooth(duration: 0.28 / developerAnimationSpeed)) {
+            coordinator.selectView(NotchViews.allCases[destinationIndex])
         }
     }
 }

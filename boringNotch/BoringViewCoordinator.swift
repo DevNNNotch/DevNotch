@@ -51,6 +51,7 @@ class BoringViewCoordinator: ObservableObject {
     static let shared = BoringViewCoordinator()
 
     @Published var currentView: NotchViews = .developer
+    @Published private(set) var viewTransitionDirection: PanDirection = .left
     @Published var helloAnimationRunning: Bool = false
     private var sneakPeekDispatch: DispatchWorkItem?
     private var expandingViewDispatch: DispatchWorkItem?
@@ -296,5 +297,15 @@ class BoringViewCoordinator: ObservableObject {
     
     func showEmpty() {
         currentView = .home
+    }
+
+    func selectView(_ view: NotchViews) {
+        guard view != currentView,
+              let currentIndex = NotchViews.allCases.firstIndex(of: currentView),
+              let destinationIndex = NotchViews.allCases.firstIndex(of: view)
+        else { return }
+
+        viewTransitionDirection = destinationIndex > currentIndex ? .left : .right
+        currentView = view
     }
 }
