@@ -31,7 +31,7 @@ struct DeveloperSettingsView: View {
                         .frame(width: 220)
                     Text("\(refreshInterval, specifier: "%.1f")s").monospacedDigit().frame(width: 38)
                 }
-                LabeledContent("Animation speed") {
+                LabeledContent("Page transition speed") {
                     Slider(value: $animationSpeed, in: 0.5...2, step: 0.1)
                         .frame(width: 220)
                     Text("\(animationSpeed, specifier: "%.1f")x").monospacedDigit().frame(width: 38)
