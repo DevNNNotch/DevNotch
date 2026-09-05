@@ -500,10 +500,6 @@ struct ContentView: View {
                 isHovering = true
             }
             
-            if vm.notchState == .closed && Defaults[.enableHaptics] {
-                haptics.toggle()
-            }
-            
             guard vm.notchState == .closed,
                   !coordinator.sneakPeek.show,
                   Defaults[.openNotchOnHover] else { return }
@@ -517,6 +513,9 @@ struct ContentView: View {
                           self.isHovering,
                           !self.coordinator.sneakPeek.show else { return }
                     
+                    if Defaults[.enableHaptics] {
+                        NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
+                    }
                     self.doOpen()
                 }
             }
