@@ -34,7 +34,7 @@ enum UsageProviderError: LocalizedError, Equatable {
              .invalidResponse(let message):
             return message
         case .httpStatus(let status, let body):
-            return "Usage provider returned HTTP \(status): \(body)"
+            return String(localized: "Usage provider returned HTTP \(status): \(body)")
         }
     }
 }

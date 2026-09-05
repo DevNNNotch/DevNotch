@@ -61,8 +61,14 @@ struct OpenAIUsageProvider: UsageProvider {
     func status() async -> ProviderStatus {
         do {
             return try keychain.string(for: "openai-admin-key")?.isEmpty == false
-                ? ProviderStatus(state: .ready, reason: "OpenAI organization usage is configured.")
-                : ProviderStatus(state: .needsConfiguration, reason: "An OpenAI organization Admin Key is required.")
+                ? ProviderStatus(
+                    state: .ready,
+                    reason: String(localized: "OpenAI organization usage is configured.")
+                )
+                : ProviderStatus(
+                    state: .needsConfiguration,
+                    reason: String(localized: "An OpenAI organization Admin Key is required.")
+                )
         } catch {
             return ProviderStatus(state: .failed, reason: error.localizedDescription)
         }
@@ -70,10 +76,14 @@ struct OpenAIUsageProvider: UsageProvider {
 
     func fetchUsage(from startDate: Date, to endDate: Date) async throws -> [UsageSample] {
         guard startDate < endDate else {
-            throw UsageProviderError.invalidConfiguration("Usage start date must be earlier than the end date.")
+            throw UsageProviderError.invalidConfiguration(
+                String(localized: "Usage start date must be earlier than the end date.")
+            )
         }
         guard let adminKey = try keychain.string(for: "openai-admin-key"), !adminKey.isEmpty else {
-            throw UsageProviderError.missingCredential("OpenAI organization usage requires an Admin Key stored in Keychain.")
+            throw UsageProviderError.missingCredential(
+                String(localized: "OpenAI organization usage requires an Admin Key stored in Keychain.")
+            )
         }
 
         var allSamples: [UsageSample] = []
@@ -83,7 +93,9 @@ struct OpenAIUsageProvider: UsageProvider {
             allSamples.append(contentsOf: page.data.flatMap(Self.samples(from:)))
             nextPage = page.hasMore ? page.nextPage : nil
             if page.hasMore && nextPage == nil {
-                throw UsageProviderError.invalidResponse("OpenAI Usage API reported more data but omitted next_page.")
+                throw UsageProviderError.invalidResponse(
+                    String(localized: "OpenAI Usage API reported more data but omitted next_page.")
+                )
             }
         } while nextPage != nil
         return allSamples
@@ -91,7 +103,9 @@ struct OpenAIUsageProvider: UsageProvider {
 
     private func fetchPage(adminKey: String, startDate: Date, endDate: Date, page: String?) async throws -> ResponsePage {
         guard var components = URLComponents(url: endpoint, resolvingAgainstBaseURL: false) else {
-            throw UsageProviderError.invalidConfiguration("OpenAI Usage API endpoint is invalid: \(endpoint.absoluteString)")
+            throw UsageProviderError.invalidConfiguration(
+                String(localized: "OpenAI Usage API endpoint is invalid: \(endpoint.absoluteString)")
+            )
         }
         var queryItems = [
             URLQueryItem(name: "start_time", value: String(Int(startDate.timeIntervalSince1970))),
@@ -105,7 +119,9 @@ struct OpenAIUsageProvider: UsageProvider {
         if let page { queryItems.append(URLQueryItem(name: "page", value: page)) }
         components.queryItems = queryItems
         guard let url = components.url else {
-            throw UsageProviderError.invalidConfiguration("OpenAI Usage API query could not be constructed.")
+            throw UsageProviderError.invalidConfiguration(
+                String(localized: "OpenAI Usage API query could not be constructed.")
+            )
         }
 
         var request = URLRequest(url: url)
@@ -114,7 +130,9 @@ struct OpenAIUsageProvider: UsageProvider {
 
         let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw UsageProviderError.invalidResponse("OpenAI Usage API did not return an HTTP response.")
+            throw UsageProviderError.invalidResponse(
+                String(localized: "OpenAI Usage API did not return an HTTP response.")
+            )
         }
         guard (200..<300).contains(httpResponse.statusCode) else {
             let body = String(data: data.prefix(1_024), encoding: .utf8) ?? "Unreadable response body"
@@ -124,7 +142,9 @@ struct OpenAIUsageProvider: UsageProvider {
         do {
             return try JSONDecoder().decode(ResponsePage.self, from: data)
         } catch {
-            throw UsageProviderError.invalidResponse("OpenAI Usage API response could not be decoded: \(error.localizedDescription)")
+            throw UsageProviderError.invalidResponse(
+                String(localized: "OpenAI Usage API response could not be decoded: \(error.localizedDescription)")
+            )
         }
     }
 

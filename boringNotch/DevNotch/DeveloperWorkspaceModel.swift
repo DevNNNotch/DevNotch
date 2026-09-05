@@ -16,28 +16,43 @@ final class DeveloperWorkspaceModel: ObservableObject {
     @Published private(set) var isGenerating = false
     @Published private(set) var openAIStatus = ProviderStatus(
         state: .needsConfiguration,
-        reason: "An OpenAI organization Admin Key is required."
+        reason: String(localized: "An OpenAI organization Admin Key is required.")
     )
-    @Published private(set) var ollamaStatus = ProviderStatus(state: .needsConfiguration, reason: "Not checked")
-    @Published private(set) var vllmStatus = ProviderStatus(state: .unavailable, reason: "vLLM is disabled")
-    @Published private(set) var localAPIStatus = ProviderStatus(state: .unavailable, reason: "Local API is disabled")
+    @Published private(set) var ollamaStatus = ProviderStatus(
+        state: .needsConfiguration,
+        reason: String(localized: "Not checked")
+    )
+    @Published private(set) var vllmStatus = ProviderStatus(
+        state: .unavailable,
+        reason: String(localized: "vLLM is disabled")
+    )
+    @Published private(set) var localAPIStatus = ProviderStatus(
+        state: .unavailable,
+        reason: String(localized: "Local API is disabled")
+    )
 
     @Published private(set) var codexStatus = ProviderStatus(
         state: .needsConfiguration,
-        reason: "Connect local Codex sessions to begin collecting token totals."
+        reason: String(localized: "Connect local Codex sessions to begin collecting token totals.")
     )
     @Published private(set) var isRefreshingCodexUsage = false
 
     var claudeCodeStatus: ProviderStatus {
         usageSamples.contains { $0.provider == .claudeCode }
-            ? ProviderStatus(state: .ready, reason: "Receiving Claude Code status-line snapshots.")
-            : ProviderStatus(state: .needsConfiguration, reason: "Configure Examples/claude_statusline.py as the Claude Code status line.")
+            ? ProviderStatus(state: .ready, reason: String(localized: "Receiving Claude Code status-line snapshots."))
+            : ProviderStatus(
+                state: .needsConfiguration,
+                reason: String(localized: "Configure Examples/claude_statusline.py as the Claude Code status line.")
+            )
     }
 
     var traeStatus: ProviderStatus {
         usageSamples.contains { $0.provider == .trae }
-            ? ProviderStatus(state: .ready, reason: "Receiving client-reported Trae usage events.")
-            : ProviderStatus(state: .unavailable, reason: "No verified Trae usage interface is configured. Use the local usage event endpoint.")
+            ? ProviderStatus(state: .ready, reason: String(localized: "Receiving client-reported Trae usage events."))
+            : ProviderStatus(
+                state: .unavailable,
+                reason: String(localized: "No verified Trae usage interface is configured. Use the local usage event endpoint.")
+            )
     }
 
     private let monitor = SystemMonitor()
@@ -137,7 +152,10 @@ final class DeveloperWorkspaceModel: ObservableObject {
                 to: Date()
             )
             await usageStore.replace(samples, for: .openAI)
-            openAIStatus = ProviderStatus(state: .ready, reason: "Loaded \(samples.count) OpenAI API usage bucket(s).")
+            openAIStatus = ProviderStatus(
+                state: .ready,
+                reason: String(localized: "Loaded \(samples.count) OpenAI API usage bucket(s).")
+            )
         } catch {
             openAIStatus = ProviderStatus(state: .failed, reason: error.localizedDescription)
         }
@@ -149,20 +167,23 @@ final class DeveloperWorkspaceModel: ObservableObject {
             await usageStore.replace([], for: .codex)
             codexStatus = ProviderStatus(
                 state: .needsConfiguration,
-                reason: "Connect local Codex sessions to begin collecting token totals."
+                reason: String(localized: "Connect local Codex sessions to begin collecting token totals.")
             )
             return
         }
         guard !isRefreshingCodexUsage else { return }
 
         isRefreshingCodexUsage = true
-        codexStatus = ProviderStatus(state: .needsConfiguration, reason: "Scanning selected Codex sessions folder.")
+        codexStatus = ProviderStatus(
+            state: .needsConfiguration,
+            reason: String(localized: "Scanning selected Codex sessions folder.")
+        )
         defer { isRefreshingCodexUsage = false }
 
         do {
             guard let bookmark = Defaults[.developerCodexSessionsBookmark] else {
                 throw UsageProviderError.invalidConfiguration(
-                    "Choose the Codex sessions folder to grant DevNotch read access."
+                    String(localized: "Choose the Codex sessions folder to grant DevNotch read access.")
                 )
             }
             var isStale = false
@@ -174,7 +195,7 @@ final class DeveloperWorkspaceModel: ObservableObject {
             )
             guard sessionsDirectory.startAccessingSecurityScopedResource() else {
                 throw UsageProviderError.invalidConfiguration(
-                    "macOS denied access to the selected Codex sessions folder. Choose the folder again."
+                    String(localized: "macOS denied access to the selected Codex sessions folder. Choose the folder again.")
                 )
             }
             defer { sessionsDirectory.stopAccessingSecurityScopedResource() }
@@ -202,8 +223,8 @@ final class DeveloperWorkspaceModel: ObservableObject {
             codexStatus = ProviderStatus(
                 state: .ready,
                 reason: samples.isEmpty
-                    ? "Connected; no Codex token_count events were found in the last 7 days."
-                    : "Connected to \(samples.count) local Codex session(s). This is not subscription quota."
+                    ? String(localized: "Connected; no Codex token_count events were found in the last 7 days.")
+                    : String(localized: "Connected to \(samples.count) local Codex session(s). This is not subscription quota.")
             )
         } catch {
             codexStatus = ProviderStatus(state: .failed, reason: error.localizedDescription)
@@ -214,7 +235,7 @@ final class DeveloperWorkspaceModel: ObservableObject {
         let didStartAccessing = directory.startAccessingSecurityScopedResource()
         guard didStartAccessing else {
             throw UsageProviderError.invalidConfiguration(
-                "macOS denied access to the selected Codex folder."
+                String(localized: "macOS denied access to the selected Codex folder.")
             )
         }
         defer { directory.stopAccessingSecurityScopedResource() }
@@ -224,7 +245,7 @@ final class DeveloperWorkspaceModel: ObservableObject {
             : directory
         guard sessionsDirectory.lastPathComponent == "sessions" else {
             throw UsageProviderError.invalidConfiguration(
-                "Choose the .codex folder or its sessions subfolder."
+                String(localized: "Choose the .codex folder or its sessions subfolder.")
             )
         }
         var isDirectory: ObjCBool = false
@@ -232,7 +253,7 @@ final class DeveloperWorkspaceModel: ObservableObject {
               isDirectory.boolValue
         else {
             throw UsageProviderError.invalidConfiguration(
-                "The selected Codex sessions location is not a readable directory: \(sessionsDirectory.path)"
+                String(localized: "The selected Codex sessions location is not a readable directory: \(sessionsDirectory.path)")
             )
         }
         Defaults[.developerCodexSessionsBookmark] = try sessionsDirectory.bookmarkData(
@@ -241,7 +262,10 @@ final class DeveloperWorkspaceModel: ObservableObject {
             relativeTo: nil
         )
         Defaults[.developerCodexUsageEnabled] = true
-        codexStatus = ProviderStatus(state: .needsConfiguration, reason: "Scanning selected Codex sessions folder.")
+        codexStatus = ProviderStatus(
+            state: .needsConfiguration,
+            reason: String(localized: "Scanning selected Codex sessions folder.")
+        )
     }
 
     func disconnectCodexUsage() {
@@ -254,7 +278,7 @@ final class DeveloperWorkspaceModel: ObservableObject {
 
     func refreshOllamaStatus() async {
         guard Defaults[.developerOllamaEnabled] else {
-            ollamaStatus = ProviderStatus(state: .unavailable, reason: "Ollama is disabled")
+            ollamaStatus = ProviderStatus(state: .unavailable, reason: String(localized: "Ollama is disabled"))
             return
         }
         do {
@@ -262,7 +286,9 @@ final class DeveloperWorkspaceModel: ObservableObject {
             let models = try await service.models()
             ollamaStatus = ProviderStatus(
                 state: .ready,
-                reason: models.isEmpty ? "Ollama is running with no installed models" : "Ollama is running with \(models.count) model(s)"
+                reason: models.isEmpty
+                    ? String(localized: "Ollama is running with no installed models")
+                    : String(localized: "Ollama is running with \(models.count) model(s)")
             )
         } catch {
             ollamaStatus = ProviderStatus(state: .failed, reason: error.localizedDescription)
@@ -271,14 +297,16 @@ final class DeveloperWorkspaceModel: ObservableObject {
 
     func refreshVLLMStatus() async {
         guard Defaults[.developerVLLMEnabled] else {
-            vllmStatus = ProviderStatus(state: .unavailable, reason: "vLLM is disabled")
+            vllmStatus = ProviderStatus(state: .unavailable, reason: String(localized: "vLLM is disabled"))
             return
         }
         do {
             let models = try await VLLMService(endpoint: Defaults[.developerVLLMEndpoint]).models()
             vllmStatus = ProviderStatus(
                 state: .ready,
-                reason: models.isEmpty ? "vLLM is running with no advertised models" : "vLLM is serving \(models.count) model(s)"
+                reason: models.isEmpty
+                    ? String(localized: "vLLM is running with no advertised models")
+                    : String(localized: "vLLM is serving \(models.count) model(s)")
             )
         } catch {
             vllmStatus = ProviderStatus(state: .failed, reason: error.localizedDescription)
@@ -331,7 +359,7 @@ final class DeveloperWorkspaceModel: ObservableObject {
         server?.stop()
         server = nil
         guard Defaults[.developerWorkspaceEnabled], Defaults[.developerLocalAPIEnabled] else {
-            localAPIStatus = ProviderStatus(state: .unavailable, reason: "Local API is disabled")
+            localAPIStatus = ProviderStatus(state: .unavailable, reason: String(localized: "Local API is disabled"))
             return
         }
 
@@ -346,23 +374,41 @@ final class DeveloperWorkspaceModel: ObservableObject {
                     guard let self else { return }
                     switch state {
                     case .starting:
-                        self.localAPIStatus = ProviderStatus(state: .needsConfiguration, reason: "Starting local API")
+                        self.localAPIStatus = ProviderStatus(
+                            state: .needsConfiguration,
+                            reason: String(localized: "Starting local API")
+                        )
                     case .ready(let port):
-                        self.localAPIStatus = ProviderStatus(state: .ready, reason: "Listening on 127.0.0.1:\(port)")
+                        self.localAPIStatus = ProviderStatus(
+                            state: .ready,
+                            reason: String(localized: "Listening on 127.0.0.1:\(port)")
+                        )
                     case .waiting(let reason):
-                        self.localAPIStatus = ProviderStatus(state: .failed, reason: "Local API is waiting: \(reason)")
+                        self.localAPIStatus = ProviderStatus(
+                            state: .failed,
+                            reason: String(localized: "Local API is waiting: \(reason)")
+                        )
                     case .failed(let reason):
-                        self.localAPIStatus = ProviderStatus(state: .failed, reason: "Local API failed: \(reason)")
+                        self.localAPIStatus = ProviderStatus(
+                            state: .failed,
+                            reason: String(localized: "Local API failed: \(reason)")
+                        )
                     case .stopped:
                         if Defaults[.developerLocalAPIEnabled] {
-                            self.localAPIStatus = ProviderStatus(state: .failed, reason: "Local API stopped unexpectedly")
+                            self.localAPIStatus = ProviderStatus(
+                                state: .failed,
+                                reason: String(localized: "Local API stopped unexpectedly")
+                            )
                         }
                     }
                 }
             }
             try server.start()
             self.server = server
-            localAPIStatus = ProviderStatus(state: .needsConfiguration, reason: "Starting local API")
+            localAPIStatus = ProviderStatus(
+                state: .needsConfiguration,
+                reason: String(localized: "Starting local API")
+            )
         } catch {
             localAPIStatus = ProviderStatus(state: .failed, reason: error.localizedDescription)
         }

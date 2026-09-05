@@ -19,6 +19,7 @@ struct DeveloperSettingsView: View {
 
     @State private var openAIAdminKey = ""
     @State private var credentialMessage: String?
+    @State private var credentialMessageIsError = false
 
     var body: some View {
         Form {
@@ -152,7 +153,7 @@ struct DeveloperSettingsView: View {
             if let credentialMessage {
                 Section("Credential status") {
                     Text(credentialMessage)
-                        .foregroundStyle(credentialMessage.hasPrefix("Error") ? .red : .secondary)
+                        .foregroundStyle(credentialMessageIsError ? .red : .secondary)
                 }
             }
         }
@@ -171,9 +172,9 @@ struct DeveloperSettingsView: View {
     }
 
     private func connectionRow<Actions: View>(
-        _ name: String,
+        _ name: LocalizedStringKey,
         icon: Image,
-        source: String,
+        source: LocalizedStringKey,
         status: ProviderStatus,
         @ViewBuilder actions: () -> Actions
     ) -> some View {
@@ -212,10 +213,11 @@ struct DeveloperSettingsView: View {
         do {
             try workspace.storeOpenAIAdminKey(openAIAdminKey)
             openAIAdminKey = ""
-            credentialMessage = "OpenAI Admin Key saved to Keychain."
+            credentialMessageIsError = false
+            credentialMessage = String(localized: "OpenAI Admin Key saved to Keychain.")
             Task { await workspace.refreshOpenAIUsage() }
         } catch {
-            credentialMessage = "Error: \(error.localizedDescription)"
+            showCredentialError(error)
         }
     }
 
@@ -223,10 +225,11 @@ struct DeveloperSettingsView: View {
         do {
             try workspace.storeOpenAIAdminKey("")
             openAIAdminKey = ""
-            credentialMessage = "OpenAI Admin Key removed from Keychain."
+            credentialMessageIsError = false
+            credentialMessage = String(localized: "OpenAI Admin Key removed from Keychain.")
             Task { await workspace.refreshOpenAIUsage() }
         } catch {
-            credentialMessage = "Error: \(error.localizedDescription)"
+            showCredentialError(error)
         }
     }
 
@@ -235,17 +238,18 @@ struct DeveloperSettingsView: View {
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
             pasteboard.setString(try workspace.localAPIToken(), forType: .string)
-            credentialMessage = "Local API token copied to the clipboard."
+            credentialMessageIsError = false
+            credentialMessage = String(localized: "Local API token copied to the clipboard.")
         } catch {
-            credentialMessage = "Error: \(error.localizedDescription)"
+            showCredentialError(error)
         }
     }
 
     private func chooseCodexSessionsFolder() {
         let panel = NSOpenPanel()
-        panel.title = "Connect Codex token usage"
-        panel.message = "Choose .codex or its sessions folder. DevNotch reads token metadata only."
-        panel.prompt = "Connect"
+        panel.title = String(localized: "Connect Codex token usage")
+        panel.message = String(localized: "Choose .codex or its sessions folder. DevNotch reads token metadata only.")
+        panel.prompt = String(localized: "Connect")
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
@@ -258,18 +262,25 @@ struct DeveloperSettingsView: View {
         guard panel.runModal() == .OK, let directory = panel.url else { return }
         do {
             try workspace.bindCodexSessionsDirectory(directory)
-            credentialMessage = "Codex sessions folder connected."
+            credentialMessageIsError = false
+            credentialMessage = String(localized: "Codex sessions folder connected.")
             Task { await workspace.refreshCodexUsage() }
         } catch {
-            credentialMessage = "Error: \(error.localizedDescription)"
+            showCredentialError(error)
         }
     }
 
     private func openIntegrationGuide() {
         guard let url = URL(string: "https://github.com/DevNNNotch/DevNotch#ai-usage-providers") else {
-            credentialMessage = "Error: The integration guide URL is invalid."
+            credentialMessageIsError = true
+            credentialMessage = String(localized: "The integration guide URL is invalid.")
             return
         }
         NSWorkspace.shared.open(url)
+    }
+
+    private func showCredentialError(_ error: Error) {
+        credentialMessageIsError = true
+        credentialMessage = String(localized: "Error: \(error.localizedDescription)")
     }
 }
