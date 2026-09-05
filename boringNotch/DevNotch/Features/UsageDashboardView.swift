@@ -19,7 +19,7 @@ struct UsageDashboardView: View {
         let providers = UsageAggregator.providerTotals(samples)
 
         return VStack(spacing: 0) {
-            header(at: now)
+            header
                 .frame(height: 34)
 
             HStack(spacing: 0) {
@@ -47,7 +47,7 @@ struct UsageDashboardView: View {
         }
     }
 
-    private func header(at now: Date) -> some View {
+    private var header: some View {
         HStack(spacing: 8) {
             Text("AI TOKEN USAGE")
                 .font(.system(size: 11, weight: .bold, design: .monospaced))
@@ -74,26 +74,8 @@ struct UsageDashboardView: View {
             .fixedSize()
             .accessibilityLabel("Usage range")
             .accessibilityValue(selectedRange.label)
-
-            status(at: now)
         }
         .padding(.horizontal, 8)
-    }
-
-    private func status(at now: Date) -> some View {
-        let latest = workspace.usageSamples.map(\.timestamp).max()
-        let isLive = latest.map { abs(now.timeIntervalSince($0)) <= 120 } ?? false
-        let label = latest == nil ? "NO DATA" : (isLive ? "LIVE" : "SYNCED")
-
-        return HStack(spacing: 4) {
-            Circle()
-                .fill(isLive ? Color.green : Color.secondary)
-                .frame(width: 6, height: 6)
-            Text(label)
-                .font(.system(size: 9, weight: .semibold, design: .monospaced))
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Usage status: \(label)")
     }
 
     private func overview(
