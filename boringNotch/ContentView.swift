@@ -23,9 +23,12 @@ struct ContentView: View {
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
     @ObservedObject var brightnessManager = BrightnessManager.shared
     @ObservedObject var volumeManager = VolumeManager.shared
+    @ObservedObject private var developerWorkspace = DeveloperWorkspaceModel.shared
     @State private var hoverTask: Task<Void, Never>?
     @State private var isHovering: Bool = false
     @State private var gestureProgress: CGFloat = .zero
+    @State private var presentedCodexCompletion: CodexTaskCompletion?
+    @State private var codexCompletionDismissTask: Task<Void, Never>?
 
     private var tabSwipeThreshold: CGFloat {
         max(40, Defaults[.gestureSensitivity] * 0.35)
@@ -114,6 +117,12 @@ struct ContentView: View {
                             .fill(.black)
                             .frame(height: 1)
                             .padding(.horizontal, topCornerRadius)
+                    }
+                    .overlay {
+                        if developerWorkspace.isCodexWorking {
+                            CodexActivityGlow(shape: currentNotchShape)
+                                .transition(.opacity)
+                        }
                     }
                     .shadow(
                         color: ((vm.notchState == .open || isHovering) && Defaults[.enableShadow])
@@ -229,6 +238,15 @@ struct ContentView: View {
         .animation(.smooth, value: gestureProgress)
         .preferredColorScheme(.dark)
         .environmentObject(vm)
+        .onChange(of: developerWorkspace.latestCodexCompletion?.id) { _, completionID in
+            guard completionID != nil,
+                  let completion = developerWorkspace.latestCodexCompletion
+            else { return }
+            presentCodexCompletion(completion)
+        }
+        .onDisappear {
+            codexCompletionDismissTask?.cancel()
+        }
     }
 
     @ViewBuilder
@@ -333,22 +351,29 @@ struct ContentView: View {
               .zIndex(2)
             if vm.notchState == .open {
                 VStack {
-                    Group {
-                        switch coordinator.currentView {
-                        case .developer:
-                            DeveloperDashboardView(
-                                onShowUsage: coordinator.visibleViews.contains(.usage)
-                                    ? { coordinator.selectView(.usage) }
-                                    : nil
-                            )
-                        case .home:
-                            NotchHomeView(albumArtNamespace: albumArtNamespace)
-                        case .usage:
-                            UsageDashboardView()
+                    if let completion = presentedCodexCompletion {
+                        CodexCompletionView(completion: completion) {
+                            dismissCodexCompletion()
                         }
+                        .id(completion.id)
+                    } else {
+                        Group {
+                            switch coordinator.currentView {
+                            case .developer:
+                                DeveloperDashboardView(
+                                    onShowUsage: coordinator.visibleViews.contains(.usage)
+                                        ? { coordinator.selectView(.usage) }
+                                        : nil
+                                )
+                            case .home:
+                                NotchHomeView(albumArtNamespace: albumArtNamespace)
+                            case .usage:
+                                UsageDashboardView()
+                            }
+                        }
+                        .id(coordinator.currentView)
+                        .transition(tabTransition)
                     }
-                    .id(coordinator.currentView)
-                    .transition(tabTransition)
                 }
                 .transition(
                     .scale(scale: 0.8, anchor: .top)
@@ -488,6 +513,40 @@ struct ContentView: View {
     private func doOpen() {
         withAnimation(animationSpring) {
             vm.open()
+        }
+    }
+
+    private func presentCodexCompletion(_ completion: CodexTaskCompletion) {
+        codexCompletionDismissTask?.cancel()
+        withAnimation(animationSpring) {
+            presentedCodexCompletion = completion
+            vm.open()
+        }
+
+        codexCompletionDismissTask = Task {
+            do {
+                try await Task.sleep(for: .seconds(10))
+            } catch {
+                return
+            }
+            guard !Task.isCancelled,
+                  presentedCodexCompletion?.id == completion.id
+            else { return }
+            dismissCodexCompletion()
+        }
+    }
+
+    private func dismissCodexCompletion() {
+        codexCompletionDismissTask?.cancel()
+        codexCompletionDismissTask = nil
+        withAnimation(animationSpring) {
+            presentedCodexCompletion = nil
+            if !isHovering,
+               vm.notchState == .open,
+               !vm.isBatteryPopoverActive,
+               !SharingStateManager.shared.preventNotchClose {
+                vm.close()
+            }
         }
     }
 

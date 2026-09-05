@@ -9,6 +9,7 @@ struct DeveloperSettingsView: View {
     @Default(.developerClipboardMonitoringEnabled) private var clipboardMonitoringEnabled
     @Default(.developerLocalAPIEnabled) private var localAPIEnabled
     @Default(.developerCodexUsageEnabled) private var codexUsageEnabled
+    @Default(.developerCodexActivityEnabled) private var codexActivityEnabled
     @Default(.developerOllamaEnabled) private var ollamaEnabled
     @Default(.developerOllamaEndpoint) private var ollamaEndpoint
     @Default(.developerOllamaModel) private var ollamaModel
@@ -44,7 +45,7 @@ struct DeveloperSettingsView: View {
                 connectionRow(
                     "Codex",
                     icon: Image("ProviderCodex").renderingMode(.template),
-                    source: "Local token_count metadata from a user-selected sessions folder",
+                    source: "Local token totals, task activity, and completion previews from a user-selected sessions folder",
                     status: workspace.codexStatus
                 ) {
                     Button(codexUsageEnabled ? "Change folder" : "Choose folder") {
@@ -62,6 +63,20 @@ struct DeveloperSettingsView: View {
                     .disabled(!codexUsageEnabled || workspace.isRefreshingCodexUsage)
                     if codexUsageEnabled {
                         Button("Disconnect", role: .destructive) { workspace.disconnectCodexUsage() }
+                    }
+                }
+
+                if codexUsageEnabled {
+                    Toggle("Show Codex task activity and completion previews", isOn: $codexActivityEnabled)
+                        .toggleStyle(.switch)
+                    Text("When enabled, DevNotch reads task titles and final responses locally. This content never leaves your Mac.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if let error = workspace.codexActivityError {
+                        Label(error, systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .textSelection(.enabled)
                     }
                 }
 
@@ -162,6 +177,8 @@ struct DeveloperSettingsView: View {
         .onChange(of: systemMonitoringEnabled) { workspace.applyConfiguration() }
         .onChange(of: clipboardMonitoringEnabled) { workspace.applyConfiguration() }
         .onChange(of: localAPIEnabled) { workspace.applyConfiguration() }
+        .onChange(of: codexUsageEnabled) { workspace.applyConfiguration() }
+        .onChange(of: codexActivityEnabled) { workspace.applyConfiguration() }
         .onChange(of: vllmEnabled) { Task { await workspace.refreshVLLMStatus() } }
     }
 
@@ -247,8 +264,10 @@ struct DeveloperSettingsView: View {
 
     private func chooseCodexSessionsFolder() {
         let panel = NSOpenPanel()
-        panel.title = String(localized: "Connect Codex token usage")
-        panel.message = String(localized: "Choose .codex or its sessions folder. DevNotch reads token metadata only.")
+        panel.title = String(localized: "Connect Codex")
+        panel.message = String(
+            localized: "Choose .codex or its sessions folder. DevNotch reads token totals and, when enabled, task titles and final response previews locally."
+        )
         panel.prompt = String(localized: "Connect")
         panel.canChooseFiles = false
         panel.canChooseDirectories = true

@@ -18,6 +18,7 @@ let package = Package(
                 .product(name: "Defaults", package: "Defaults")
             ],
             path: "boringNotch/DevNotch",
+            exclude: ["Features/CodexActivityView.swift"],
             sources: [
                 "DeveloperWorkspaceModel.swift",
                 "Models/UsageSample.swift",
@@ -25,10 +26,12 @@ let package = Package(
                 "Models/SystemSnapshot.swift",
                 "Models/DeveloperDefaults.swift",
                 "Models/NotchNavigation.swift",
+                "Models/CodexActivity.swift",
                 "Services/KeychainStore.swift",
                 "Services/SystemMonitor.swift",
                 "Services/UsageProvider.swift",
                 "Services/CodexUsageCollector.swift",
+                "Services/CodexActivityMonitor.swift",
                 "Services/OpenAIUsageProvider.swift",
                 "Services/OllamaService.swift",
                 "Services/VLLMService.swift",

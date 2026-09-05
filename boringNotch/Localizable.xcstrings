@@ -4720,11 +4720,22 @@
       }
     },
     "Choose .codex or its sessions folder. DevNotch reads token metadata only." : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "请选择 .codex 文件夹或其中的 sessions 文件夹。DevNotch 只读取 Token 元数据。"
+          }
+        }
+      }
+    },
+    "Choose .codex or its sessions folder. DevNotch reads token totals and, when enabled, task titles and final response previews locally." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择 .codex 或其中的 sessions 文件夹。DevNotch 会读取 Token 总量，并在启用后于本机读取任务标题和最终回复预览。"
           }
         }
       }
@@ -5716,12 +5727,42 @@
     "Codex" : {
 
     },
+    "CODEX" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CODEX"
+          }
+        }
+      }
+    },
+    "Codex is working" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex 正在工作"
+          }
+        }
+      }
+    },
     "Codex sessions folder connected." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Codex 会话文件夹已连接。"
+          }
+        }
+      }
+    },
+    "Codex task monitoring failed: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codex 任务监听失败：%@"
           }
         }
       }
@@ -6046,7 +6087,18 @@
         }
       }
     },
+    "Connect Codex" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接 Codex"
+          }
+        }
+      }
+    },
     "Connect Codex token usage" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -7767,6 +7819,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "断开连接"
+          }
+        }
+      }
+    },
+    "Dismiss Codex completion" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭 Codex 完成提示"
           }
         }
       }
@@ -12578,7 +12640,18 @@
         }
       }
     },
+    "Local token totals, task activity, and completion previews from a user-selected sessions folder" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从用户选择的会话文件夹读取本地 Token 总量、任务状态和完成预览"
+          }
+        }
+      }
+    },
     "Local token_count metadata from a user-selected sessions folder" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -20149,6 +20222,16 @@
         }
       }
     },
+    "Show Codex task activity and completion previews" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示 Codex 任务状态和完成预览"
+          }
+        }
+      }
+    },
     "Show cool face animation while inactive" : {
       "localizations" : {
         "ar" : {
@@ -22435,6 +22518,16 @@
         }
       }
     },
+    "Task completed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "任务已完成"
+          }
+        }
+      }
+    },
     "The dragged navigation item could not be read." : {
       "localizations" : {
         "zh-Hans" : {
@@ -24440,6 +24533,16 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "更新内容"
+          }
+        }
+      }
+    },
+    "When enabled, DevNotch reads task titles and final responses locally. This content never leaves your Mac." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用后，DevNotch 只在本机读取任务标题和最终回复，这些内容不会离开你的 Mac。"
           }
         }
       }

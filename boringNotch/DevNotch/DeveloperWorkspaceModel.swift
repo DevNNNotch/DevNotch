@@ -36,6 +36,11 @@ final class DeveloperWorkspaceModel: ObservableObject {
         reason: String(localized: "Connect local Codex sessions to begin collecting token totals.")
     )
     @Published private(set) var isRefreshingCodexUsage = false
+    @Published private(set) var codexRunningTasks: [CodexTaskActivity] = []
+    @Published private(set) var latestCodexCompletion: CodexTaskCompletion?
+    @Published private(set) var codexActivityError: String?
+
+    var isCodexWorking: Bool { !codexRunningTasks.isEmpty }
 
     var claudeCodeStatus: ProviderStatus {
         usageSamples.contains { $0.provider == .claudeCode }
@@ -67,6 +72,9 @@ final class DeveloperWorkspaceModel: ObservableObject {
     private var hasStarted = false
     private var codexCollector: CodexUsageCollector?
     private var codexCollectorDirectory: URL?
+    private var codexActivityTask: Task<Void, Never>?
+    private var codexActivityDirectory: URL?
+    private var codexActivityScopedDirectory: URL?
 
     private init() {
         monitor.$snapshot
@@ -104,6 +112,7 @@ final class DeveloperWorkspaceModel: ObservableObject {
         aiTask?.cancel()
         observationTasks.forEach { $0.cancel() }
         observationTasks.removeAll()
+        stopCodexActivityMonitoring()
         hasStarted = false
     }
 
@@ -121,6 +130,7 @@ final class DeveloperWorkspaceModel: ObservableObject {
             clipboardContext = nil
         }
         configureLocalAPI()
+        configureCodexActivityMonitoring()
         Task { [weak self] in await self?.refreshCodexUsage() }
     }
 
@@ -266,6 +276,7 @@ final class DeveloperWorkspaceModel: ObservableObject {
             state: .needsConfiguration,
             reason: String(localized: "Scanning selected Codex sessions folder.")
         )
+        configureCodexActivityMonitoring()
     }
 
     func disconnectCodexUsage() {
@@ -273,6 +284,7 @@ final class DeveloperWorkspaceModel: ObservableObject {
         Defaults[.developerCodexSessionsBookmark] = nil
         codexCollector = nil
         codexCollectorDirectory = nil
+        stopCodexActivityMonitoring()
         Task { [weak self] in await self?.refreshCodexUsage() }
     }
 
@@ -437,6 +449,98 @@ final class DeveloperWorkspaceModel: ObservableObject {
             }
             await refreshCodexUsage()
         }
+    }
+
+    private func configureCodexActivityMonitoring() {
+        guard Defaults[.developerWorkspaceEnabled],
+              Defaults[.developerCodexUsageEnabled],
+              Defaults[.developerCodexActivityEnabled]
+        else {
+            stopCodexActivityMonitoring()
+            return
+        }
+
+        do {
+            guard let bookmark = Defaults[.developerCodexSessionsBookmark] else {
+                throw UsageProviderError.invalidConfiguration(
+                    String(localized: "Choose the Codex sessions folder to grant DevNotch read access.")
+                )
+            }
+            var isStale = false
+            let directory = try URL(
+                resolvingBookmarkData: bookmark,
+                options: [.withSecurityScope],
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            )
+            if isStale {
+                Defaults[.developerCodexSessionsBookmark] = try directory.bookmarkData(
+                    options: [.withSecurityScope],
+                    includingResourceValuesForKeys: nil,
+                    relativeTo: nil
+                )
+            }
+            if codexActivityDirectory == directory, codexActivityTask != nil {
+                return
+            }
+
+            stopCodexActivityMonitoring()
+            guard directory.startAccessingSecurityScopedResource() else {
+                throw UsageProviderError.invalidConfiguration(
+                    String(localized: "macOS denied access to the selected Codex sessions folder. Choose the folder again.")
+                )
+            }
+            codexActivityDirectory = directory
+            codexActivityScopedDirectory = directory
+            codexActivityError = nil
+
+            let monitor = CodexActivityMonitor(sessionsDirectory: directory)
+            codexActivityTask = Task.detached(priority: .utility) { [weak self] in
+                do {
+                    try await monitor.run { [weak self] update in
+                        await self?.receiveCodexActivity(update)
+                    }
+                } catch is CancellationError {
+                    return
+                } catch {
+                    await self?.codexActivityMonitoringFailed(error)
+                }
+            }
+        } catch {
+            codexActivityMonitoringFailed(error)
+        }
+    }
+
+    private func stopCodexActivityMonitoring() {
+        codexActivityTask?.cancel()
+        codexActivityTask = nil
+        codexActivityScopedDirectory?.stopAccessingSecurityScopedResource()
+        codexActivityScopedDirectory = nil
+        codexActivityDirectory = nil
+        codexRunningTasks = []
+        latestCodexCompletion = nil
+        codexActivityError = nil
+    }
+
+    private func receiveCodexActivity(_ update: CodexActivityUpdate) {
+        codexActivityError = nil
+        switch update {
+        case .runningTasks(let tasks):
+            codexRunningTasks = tasks
+        case .completed(let completion):
+            latestCodexCompletion = completion
+        }
+    }
+
+    private func codexActivityMonitoringFailed(_ error: Error) {
+        codexActivityTask = nil
+        codexActivityScopedDirectory?.stopAccessingSecurityScopedResource()
+        codexActivityScopedDirectory = nil
+        codexActivityDirectory = nil
+        codexRunningTasks = []
+        codexActivityError = String(
+            localized: "Codex task monitoring failed: \(error.localizedDescription)"
+        )
     }
 
     private static func generateToken() throws -> String {
