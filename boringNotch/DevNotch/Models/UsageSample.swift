@@ -74,6 +74,16 @@ struct UsageSample: Codable, Equatable, Identifiable, Sendable {
 }
 
 enum UsageAggregator {
+    struct ProviderTotal: Equatable, Identifiable, Sendable {
+        var id: UsageSample.Provider { provider }
+
+        let provider: UsageSample.Provider
+        let input: Int
+        let cached: Int
+        let output: Int
+        let total: Int
+    }
+
     static func totals(_ samples: [UsageSample]) -> (input: Int, cached: Int, output: Int, total: Int) {
         samples.reduce(into: (0, 0, 0, 0)) { result, sample in
             result.0 += sample.inputTokens
@@ -81,6 +91,30 @@ enum UsageAggregator {
             result.2 += sample.outputTokens
             result.3 += sample.totalTokens
         }
+    }
+
+    static func providerTotals(_ samples: [UsageSample]) -> [ProviderTotal] {
+        Dictionary(grouping: samples, by: \.provider)
+            .map { provider, providerSamples in
+                let totals = totals(providerSamples)
+                return ProviderTotal(
+                    provider: provider,
+                    input: totals.input,
+                    cached: totals.cached,
+                    output: totals.output,
+                    total: totals.total
+                )
+            }
+            .sorted {
+                if $0.total == $1.total { return $0.provider.rawValue < $1.provider.rawValue }
+                return $0.total > $1.total
+            }
+    }
+
+    static func cacheHitRate(_ samples: [UsageSample]) -> Double? {
+        let totals = totals(samples)
+        guard totals.input > 0 else { return nil }
+        return min(1, max(0, Double(totals.cached) / Double(totals.input)))
     }
 }
 

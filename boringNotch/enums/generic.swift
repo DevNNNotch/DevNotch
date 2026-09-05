@@ -28,6 +28,7 @@ public enum NotchViews: CaseIterable, Hashable {
     case developer
     case home
     case shelf
+    case usage
 }
 
 enum SettingsEnum {

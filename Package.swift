@@ -37,6 +37,7 @@ let package = Package(
                 "Features/ClipboardMonitor.swift",
                 "Features/AIAction.swift",
                 "Features/DeveloperDashboardView.swift",
+                "Features/UsageDashboardView.swift",
                 "Features/DeveloperSettingsView.swift"
             ]
         ),

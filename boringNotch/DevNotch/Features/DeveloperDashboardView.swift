@@ -3,7 +3,11 @@ import SwiftUI
 struct DeveloperDashboardView: View {
     @ObservedObject private var workspace = DeveloperWorkspaceModel.shared
     @State private var showingAIResult = false
-    @State private var showingUsageDetails = false
+    let onShowUsage: () -> Void
+
+    init(onShowUsage: @escaping () -> Void = {}) {
+        self.onShowUsage = onShowUsage
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -59,15 +63,12 @@ struct DeveloperDashboardView: View {
             Spacer(minLength: 0)
             HStack(spacing: 14) {
                 Button {
-                    showingUsageDetails = true
+                    onShowUsage()
                 } label: {
                     Image(systemName: "chart.bar.xaxis")
                 }
                 .buttonStyle(.plain)
-                .help("Show usage by client")
-                .popover(isPresented: $showingUsageDetails, arrowEdge: .bottom) {
-                    UsageDetailsPopover(samples: workspace.usageSamples)
-                }
+                .help("Open token usage dashboard")
 
                 Button {
                     Task { await workspace.refreshOpenAIUsage() }
@@ -225,70 +226,6 @@ struct DeveloperDashboardView: View {
         case .translate: "character.book.closed"
         case .generateCommitMessage: "arrow.triangle.branch"
         }
-    }
-}
-
-private struct UsageDetailsPopover: View {
-    let samples: [UsageSample]
-
-    private var providers: [UsageSample.Provider] {
-        UsageSample.Provider.allCases.filter { provider in
-            samples.contains { $0.provider == provider }
-        }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Usage by client", systemImage: "chart.bar.xaxis")
-                .font(.headline)
-            Divider()
-            if providers.isEmpty {
-                ContentUnavailableView(
-                    "No usage data",
-                    systemImage: "number.square",
-                    description: Text("Configure a provider or submit a local usage event.")
-                )
-            } else {
-                ForEach(providers, id: \.self) { provider in
-                    let providerSamples = samples.filter { $0.provider == provider }
-                    let totals = UsageAggregator.totals(providerSamples)
-                    HStack(alignment: .firstTextBaseline) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(displayName(provider))
-                                .font(.system(size: 12, weight: .semibold))
-                            Text(sourceSummary(providerSamples))
-                                .font(.system(size: 9, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Text("\(totals.input.formatted()) in")
-                        Text("\(totals.cached.formatted()) cache")
-                        Text("\(totals.output.formatted()) out")
-                        Text(totals.total.formatted())
-                            .fontWeight(.semibold)
-                    }
-                    .font(.system(size: 10, design: .monospaced))
-                    if provider != providers.last { Divider() }
-                }
-            }
-        }
-        .padding(14)
-        .frame(width: 560, height: 280, alignment: .topLeading)
-    }
-
-    private func displayName(_ provider: UsageSample.Provider) -> String {
-        switch provider {
-        case .openAI: "OpenAI API"
-        case .codex: "Codex"
-        case .claudeCode: "Claude Code"
-        case .trae: "Trae"
-        case .external: "External"
-        }
-    }
-
-    private func sourceSummary(_ values: [UsageSample]) -> String {
-        let sources = Set(values.map(\.sourceType.rawValue)).sorted()
-        return sources.joined(separator: ", ")
     }
 }
 
