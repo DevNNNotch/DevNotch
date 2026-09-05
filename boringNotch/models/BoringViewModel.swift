@@ -210,7 +210,7 @@ class BoringViewModel: NSObject, ObservableObject {
         self.edgeAutoOpenActive = false
 
         if !coordinator.openLastTabByDefault {
-            coordinator.currentView = Defaults[.developerWorkspaceEnabled] ? .developer : .home
+            coordinator.currentView = .home
         }
     }
 

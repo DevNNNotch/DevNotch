@@ -50,7 +50,7 @@ struct ExpandedItem {
 class BoringViewCoordinator: ObservableObject {
     static let shared = BoringViewCoordinator()
 
-    @Published var currentView: NotchViews = .developer
+    @Published var currentView: NotchViews = .home
     @Published private(set) var viewTransitionDirection: PanDirection = .left
     @Published var helloAnimationRunning: Bool = false
     private var sneakPeekDispatch: DispatchWorkItem?
@@ -66,7 +66,7 @@ class BoringViewCoordinator: ObservableObject {
         didSet {
             if !alwaysShowTabs {
                 openLastTabByDefault = false
-                currentView = Defaults[.developerWorkspaceEnabled] ? .developer : .home
+                currentView = .home
             }
         }
     }
