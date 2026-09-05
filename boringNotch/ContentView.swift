@@ -280,11 +280,9 @@ struct ContentView: View {
                       } else if !coordinator.expandingView.show && vm.notchState == .closed && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace] && !vm.hideOnClosed  {
                           BoringFaceAnimation()
                        } else if vm.notchState == .open {
-                           if coordinator.currentView != .usage {
-                               BoringHeader()
-                                   .frame(height: max(24, vm.effectiveClosedNotchHeight))
-                                   .opacity(gestureProgress != 0 ? 1.0 - min(abs(gestureProgress) * 0.1, 0.3) : 1.0)
-                           }
+                           BoringHeader()
+                               .frame(height: max(24, vm.effectiveClosedNotchHeight))
+                               .opacity(gestureProgress != 0 ? 1.0 - min(abs(gestureProgress) * 0.1, 0.3) : 1.0)
                        } else {
                            Rectangle().fill(.clear).frame(width: vm.closedNotchSize.width - 20, height: vm.effectiveClosedNotchHeight)
                        }
@@ -342,9 +340,7 @@ struct ContentView: View {
                         case .home:
                             NotchHomeView(albumArtNamespace: albumArtNamespace)
                         case .usage:
-                            UsageDashboardView {
-                                coordinator.selectView(.developer)
-                            }
+                            UsageDashboardView()
                         }
                     }
                     .id(coordinator.currentView)

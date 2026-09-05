@@ -4,12 +4,6 @@ struct UsageDashboardView: View {
     @ObservedObject private var workspace = DeveloperWorkspaceModel.shared
     @State private var selectedRange = UsageRange.today
 
-    let onBack: () -> Void
-
-    init(onBack: @escaping () -> Void = {}) {
-        self.onBack = onBack
-    }
-
     var body: some View {
         TimelineView(.periodic(from: .now, by: 10)) { context in
             dashboard(at: context.date)
@@ -57,15 +51,6 @@ struct UsageDashboardView: View {
 
     private func header(at now: Date) -> some View {
         HStack(spacing: 8) {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .frame(width: 24, height: 24)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Back to Developer")
-            .accessibilityLabel("Back to Developer")
-
             Text("AI TOKEN USAGE")
                 .font(.system(size: 11, weight: .bold, design: .monospaced))
 
@@ -97,10 +82,6 @@ struct UsageDashboardView: View {
             .accessibilityValue(selectedRange.label)
 
             status(at: now)
-
-            Text(now.formatted(date: .omitted, time: .shortened))
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .monospacedDigit()
         }
         .padding(.horizontal, 16)
     }
