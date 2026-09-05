@@ -51,6 +51,9 @@ class BoringViewCoordinator: ObservableObject {
     static let shared = BoringViewCoordinator()
 
     @Published var currentView: NotchViews = .home
+    @Published private(set) var visibleViews: [NotchViews] = NotchTabPreference.visibleViews(
+        in: NotchTabPreference.defaultConfiguration
+    )
     @Published private(set) var viewTransitionDirection: PanDirection = .left
     @Published var helloAnimationRunning: Bool = false
     private var sneakPeekDispatch: DispatchWorkItem?
@@ -66,7 +69,7 @@ class BoringViewCoordinator: ObservableObject {
         didSet {
             if !alwaysShowTabs {
                 openLastTabByDefault = false
-                currentView = .home
+                resetToFirstVisibleView()
             }
         }
     }
@@ -99,6 +102,7 @@ class BoringViewCoordinator: ObservableObject {
     @Published var optionKeyPressed: Bool = true
     private var accessibilityObserver: Any?
     private var hudReplacementCancellable: AnyCancellable?
+    private var notchTabConfigurationCancellable: AnyCancellable?
 
     private init() {
         // Perform migration from name-based to UUID-based storage
@@ -121,6 +125,15 @@ class BoringViewCoordinator: ObservableObject {
         }
         
         selectedScreenUUID = preferredScreenUUID ?? NSScreen.main?.displayUUID ?? ""
+        applyNavigationConfiguration(Defaults[.notchTabConfiguration], animated: false)
+
+        notchTabConfigurationCancellable = Defaults.publisher(.notchTabConfiguration)
+            .sink { [weak self] change in
+                Task { @MainActor in
+                    self?.applyNavigationConfiguration(change.newValue, animated: true)
+                }
+            }
+
         // Observe changes to accessibility authorization and react accordingly
         accessibilityObserver = NotificationCenter.default.addObserver(
             forName: Notification.Name.accessibilityAuthorizationChanged,
@@ -294,16 +307,61 @@ class BoringViewCoordinator: ObservableObject {
     }
     
     func showEmpty() {
-        currentView = .home
+        resetToFirstVisibleView()
     }
 
     func selectView(_ view: NotchViews) {
         guard view != currentView,
-              let currentIndex = NotchViews.allCases.firstIndex(of: currentView),
-              let destinationIndex = NotchViews.allCases.firstIndex(of: view)
-        else { return }
+              let destinationIndex = visibleViews.firstIndex(of: view)
+        else {
+            if !visibleViews.contains(view) {
+                NSLog("DevNotch navigation rejected hidden page '%@'.", view.rawValue)
+            }
+            return
+        }
 
-        viewTransitionDirection = destinationIndex > currentIndex ? .left : .right
+        if let currentIndex = visibleViews.firstIndex(of: currentView) {
+            viewTransitionDirection = destinationIndex > currentIndex ? .left : .right
+        }
         currentView = view
+    }
+
+    func resetToFirstVisibleView() {
+        guard let firstView = visibleViews.first else {
+            NSLog("DevNotch navigation has no visible pages.")
+            return
+        }
+        currentView = firstView
+    }
+
+    private func applyNavigationConfiguration(
+        _ configuration: [NotchTabPreference],
+        animated: Bool
+    ) {
+        let normalized = NotchTabPreference.normalized(configuration)
+        if normalized != configuration {
+            Defaults[.notchTabConfiguration] = normalized
+        }
+
+        let newVisibleViews = NotchTabPreference.visibleViews(in: normalized)
+        guard !newVisibleViews.isEmpty else {
+            visibleViews = []
+            NSLog("DevNotch navigation configuration is invalid: at least one page must be visible.")
+            return
+        }
+
+        visibleViews = newVisibleViews
+        guard !newVisibleViews.contains(currentView) else { return }
+
+        let updateCurrentView = {
+            self.currentView = newVisibleViews[0]
+        }
+        if animated {
+            withAnimation(.smooth(duration: 0.28)) {
+                updateCurrentView()
+            }
+        } else {
+            updateCurrentView()
+        }
     }
 }

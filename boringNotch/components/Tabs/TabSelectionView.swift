@@ -7,40 +7,27 @@
 
 import SwiftUI
 
-struct TabModel: Identifiable {
-    let id = UUID()
-    let label: String
-    let icon: TabIcon
-    let view: NotchViews
-}
-
-let tabs = [
-    TabModel(label: "Home", icon: .asset("MusicTabIcon"), view: .home),
-    TabModel(label: "Developer", icon: .system("terminal.fill"), view: .developer),
-    TabModel(label: "Usage", icon: .system("chart.bar.xaxis"), view: .usage)
-]
-
 struct TabSelectionView: View {
     @ObservedObject var coordinator = BoringViewCoordinator.shared
     @Namespace var animation
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(tabs) { tab in
-                    TabButton(label: tab.label, icon: tab.icon, selected: coordinator.currentView == tab.view) {
+            ForEach(coordinator.visibleViews) { view in
+                    TabButton(label: view.tabLabel, icon: view.tabIcon, selected: coordinator.currentView == view) {
                         withAnimation(.smooth) {
-                            coordinator.selectView(tab.view)
+                            coordinator.selectView(view)
                         }
                     }
                     .frame(height: 26)
-                    .foregroundStyle(tab.view == coordinator.currentView ? .white : .gray)
+                    .foregroundStyle(view == coordinator.currentView ? .white : .gray)
                     .background {
-                        if tab.view == coordinator.currentView {
+                        if view == coordinator.currentView {
                             Capsule()
-                                .fill(coordinator.currentView == tab.view ? Color(nsColor: .secondarySystemFill) : Color.clear)
+                                .fill(coordinator.currentView == view ? Color(nsColor: .secondarySystemFill) : Color.clear)
                                 .matchedGeometryEffect(id: "capsule", in: animation)
                         } else {
                             Capsule()
-                                .fill(coordinator.currentView == tab.view ? Color(nsColor: .secondarySystemFill) : Color.clear)
+                                .fill(coordinator.currentView == view ? Color(nsColor: .secondarySystemFill) : Color.clear)
                                 .matchedGeometryEffect(id: "capsule", in: animation)
                                 .hidden()
                         }
@@ -48,6 +35,31 @@ struct TabSelectionView: View {
             }
         }
         .clipShape(Capsule())
+        .animation(.smooth(duration: 0.25), value: coordinator.visibleViews)
+    }
+}
+
+extension NotchViews {
+    var tabLabel: String {
+        switch self {
+        case .home:
+            return String(localized: "Music")
+        case .developer:
+            return String(localized: "Developer")
+        case .usage:
+            return String(localized: "AI token usage")
+        }
+    }
+
+    var tabIcon: TabIcon {
+        switch self {
+        case .home:
+            return .asset("MusicTabIcon")
+        case .developer:
+            return .system("terminal.fill")
+        case .usage:
+            return .system("chart.bar.xaxis")
+        }
     }
 }
 

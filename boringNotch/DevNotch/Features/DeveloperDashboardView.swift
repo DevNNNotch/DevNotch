@@ -3,9 +3,9 @@ import SwiftUI
 struct DeveloperDashboardView: View {
     @ObservedObject private var workspace = DeveloperWorkspaceModel.shared
     @State private var showingAIResult = false
-    let onShowUsage: () -> Void
+    let onShowUsage: (() -> Void)?
 
-    init(onShowUsage: @escaping () -> Void = {}) {
+    init(onShowUsage: (() -> Void)? = nil) {
         self.onShowUsage = onShowUsage
     }
 
@@ -62,13 +62,15 @@ struct DeveloperDashboardView: View {
             }
             Spacer(minLength: 0)
             HStack(spacing: 14) {
-                Button {
-                    onShowUsage()
-                } label: {
-                    Image(systemName: "chart.bar.xaxis")
+                if let onShowUsage {
+                    Button {
+                        onShowUsage()
+                    } label: {
+                        Image(systemName: "chart.bar.xaxis")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open token usage dashboard")
                 }
-                .buttonStyle(.plain)
-                .help("Open token usage dashboard")
 
                 Button {
                     Task { await workspace.refreshOpenAIUsage() }

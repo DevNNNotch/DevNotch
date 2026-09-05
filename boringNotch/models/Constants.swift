@@ -98,6 +98,10 @@ extension Defaults.Keys {
     static let showOnAllDisplays = Key<Bool>("showOnAllDisplays", default: false)
     static let automaticallySwitchDisplay = Key<Bool>("automaticallySwitchDisplay", default: true)
     static let releaseName = Key<String>("releaseName", default: "Flying Rabbit 🐇🪽")
+    static let notchTabConfiguration = Key<[NotchTabPreference]>(
+        "notchTabConfiguration",
+        default: NotchTabPreference.defaultConfiguration
+    )
     
     // MARK: Behavior
     static let minimumHoverDuration = Key<TimeInterval>("minimumHoverDuration", default: 0.3)

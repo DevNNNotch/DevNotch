@@ -13,6 +13,7 @@ import LaunchAtLogin
 import Sparkle
 import SwiftUI
 import SwiftUIIntrospect
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @State private var selectedTab = "Developer"
@@ -194,6 +195,8 @@ struct GeneralSettings: View {
                 Text("System features")
             }
 
+            NotchNavigationSettings()
+
             Section {
                 Picker(
                     selection: $notchHeightMode,
@@ -347,6 +350,193 @@ struct GeneralSettings: View {
         } header: {
             Text("Notch behavior")
         }
+    }
+}
+
+private struct NotchNavigationSettings: View {
+    @Default(.notchTabConfiguration) private var configuration
+    @State private var errorMessage: String?
+
+    private var normalizedConfiguration: [NotchTabPreference] {
+        NotchTabPreference.normalized(configuration)
+    }
+
+    private var visibleCount: Int {
+        normalizedConfiguration.lazy.filter(\.isVisible).count
+    }
+
+    var body: some View {
+        Section {
+            ForEach(Array(normalizedConfiguration.enumerated()), id: \.element.id) { index, item in
+                navigationRow(item, at: index)
+            }
+
+            HStack {
+                Spacer()
+                Button("Reset to Defaults") {
+                    withAnimation(.smooth(duration: 0.25)) {
+                        configuration = NotchTabPreference.defaultConfiguration
+                    }
+                }
+                .buttonStyle(.borderless)
+                .disabled(normalizedConfiguration == NotchTabPreference.defaultConfiguration)
+            }
+        } header: {
+            Text("Top navigation")
+        } footer: {
+            Text("Drag pages or use the arrow buttons to change their order. Turn off pages you do not want to show. At least one page must remain visible.")
+        }
+        .onAppear {
+            let normalized = normalizedConfiguration
+            if normalized != configuration {
+                configuration = normalized
+            }
+        }
+        .animation(.smooth(duration: 0.22), value: configuration)
+        .alert("Navigation configuration error", isPresented: errorIsPresented) {
+            Button("OK", role: .cancel) {
+                errorMessage = nil
+            }
+        } message: {
+            Text(errorMessage ?? "")
+        }
+    }
+
+    private var errorIsPresented: Binding<Bool> {
+        Binding(
+            get: { errorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    errorMessage = nil
+                }
+            }
+        )
+    }
+
+    private func navigationRow(_ item: NotchTabPreference, at index: Int) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "line.3.horizontal")
+                .foregroundStyle(.tertiary)
+                .frame(width: 22, height: 28)
+                .contentShape(Rectangle())
+                .onDrag {
+                    NSItemProvider(object: item.view.rawValue as NSString)
+                }
+                .help("Drag to reorder")
+                .accessibilityLabel("Drag to reorder")
+
+            tabIcon(for: item.view)
+                .frame(width: 20, height: 20)
+                .accessibilityHidden(true)
+
+            Text(item.view.tabLabel)
+
+            Spacer(minLength: 12)
+
+            HStack(spacing: 2) {
+                Button {
+                    move(item.view, to: index - 1)
+                } label: {
+                    Label("Move up", systemImage: "chevron.up")
+                        .labelStyle(.iconOnly)
+                        .frame(width: 22, height: 22)
+                }
+                .buttonStyle(.borderless)
+                .disabled(index == normalizedConfiguration.startIndex)
+                .help("Move up")
+
+                Button {
+                    move(item.view, to: index + 1)
+                } label: {
+                    Label("Move down", systemImage: "chevron.down")
+                        .labelStyle(.iconOnly)
+                        .frame(width: 22, height: 22)
+                }
+                .buttonStyle(.borderless)
+                .disabled(index == normalizedConfiguration.index(before: normalizedConfiguration.endIndex))
+                .help("Move down")
+            }
+
+            Toggle(isOn: visibilityBinding(for: item.view)) {
+                Text(item.view.tabLabel)
+            }
+            .labelsHidden()
+            .disabled(item.isVisible && visibleCount == 1)
+            .help(item.isVisible && visibleCount == 1 ? "At least one page must remain visible." : "Show this page in the notch")
+        }
+        .padding(.vertical, 2)
+        .contentShape(Rectangle())
+        .onDrop(of: [UTType.plainText.identifier], isTargeted: nil) { providers in
+            handleDrop(providers, destinationIndex: index)
+        }
+    }
+
+    @ViewBuilder
+    private func tabIcon(for view: NotchViews) -> some View {
+        switch view.tabIcon {
+        case .system(let name):
+            Image(systemName: name)
+        case .asset(let name):
+            Image(name)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+        }
+    }
+
+    private func visibilityBinding(for view: NotchViews) -> Binding<Bool> {
+        Binding(
+            get: {
+                normalizedConfiguration.first(where: { $0.view == view })?.isVisible ?? false
+            },
+            set: { isVisible in
+                do {
+                    configuration = try NotchTabPreference.settingVisibility(
+                        of: view,
+                        to: isVisible,
+                        in: configuration
+                    )
+                } catch {
+                    errorMessage = error.localizedDescription
+                }
+            }
+        )
+    }
+
+    private func move(_ view: NotchViews, to destinationIndex: Int) {
+        do {
+            configuration = try NotchTabPreference.moving(
+                view,
+                to: destinationIndex,
+                in: configuration
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func handleDrop(_ providers: [NSItemProvider], destinationIndex: Int) -> Bool {
+        guard let provider = providers.first(where: { $0.canLoadObject(ofClass: NSString.self) }) else {
+            errorMessage = String(localized: "The dragged navigation item could not be read.")
+            return false
+        }
+
+        provider.loadObject(ofClass: NSString.self) { object, error in
+            DispatchQueue.main.async {
+                if let error {
+                    errorMessage = error.localizedDescription
+                    return
+                }
+                guard let rawValue = (object as? NSString).map({ $0 as String }),
+                      let view = NotchViews(rawValue: rawValue)
+                else {
+                    errorMessage = String(localized: "The dragged navigation item is invalid.")
+                    return
+                }
+                move(view, to: destinationIndex)
+            }
+        }
+        return true
     }
 }
 

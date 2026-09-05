@@ -24,6 +24,7 @@ let package = Package(
                 "Models/DeveloperEvent.swift",
                 "Models/SystemSnapshot.swift",
                 "Models/DeveloperDefaults.swift",
+                "Models/NotchNavigation.swift",
                 "Services/KeychainStore.swift",
                 "Services/SystemMonitor.swift",
                 "Services/UsageProvider.swift",

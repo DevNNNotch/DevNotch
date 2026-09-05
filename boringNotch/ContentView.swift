@@ -336,9 +336,11 @@ struct ContentView: View {
                     Group {
                         switch coordinator.currentView {
                         case .developer:
-                            DeveloperDashboardView {
-                                coordinator.selectView(.usage)
-                            }
+                            DeveloperDashboardView(
+                                onShowUsage: coordinator.visibleViews.contains(.usage)
+                                    ? { coordinator.selectView(.usage) }
+                                    : nil
+                            )
                         case .home:
                             NotchHomeView(albumArtNamespace: albumArtNamespace)
                         case .usage:
@@ -603,14 +605,14 @@ struct ContentView: View {
         guard vm.notchState == .open,
               phase == .ended,
               translation >= tabSwipeThreshold,
-              let currentIndex = NotchViews.primaryViews.firstIndex(of: coordinator.currentView)
+              let currentIndex = coordinator.visibleViews.firstIndex(of: coordinator.currentView)
         else { return }
 
         let destinationIndex = currentIndex + (direction == .left ? 1 : -1)
-        guard NotchViews.primaryViews.indices.contains(destinationIndex) else { return }
+        guard coordinator.visibleViews.indices.contains(destinationIndex) else { return }
 
         withAnimation(.smooth(duration: 0.28 / developerAnimationSpeed)) {
-            coordinator.selectView(NotchViews.primaryViews[destinationIndex])
+            coordinator.selectView(coordinator.visibleViews[destinationIndex])
         }
     }
 }

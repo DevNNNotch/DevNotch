@@ -2215,6 +2215,16 @@
         }
       }
     },
+    "AI token usage" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI Token 用量"
+          }
+        }
+      }
+    },
     "AI TOKEN USAGE" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2844,6 +2854,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "应用监控设置"
+          }
+        }
+      }
+    },
+    "At least one page must remain visible." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "至少保留一个可见页面。"
           }
         }
       }
@@ -8148,6 +8168,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "拖动预览中的控件可排序，也可从下方添加"
+          }
+        }
+      }
+    },
+    "Drag pages or use the arrow buttons to change their order. Turn off pages you do not want to show. At least one page must remain visible." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动页面或使用箭头按钮调整顺序。关闭不想在灵动岛中显示的页面。至少保留一个可见页面。"
+          }
+        }
+      }
+    },
+    "Drag to reorder" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动以排序"
           }
         }
       }
@@ -14608,6 +14648,36 @@
         }
       }
     },
+    "Move down" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下移"
+          }
+        }
+      }
+    },
+    "Move up" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上移"
+          }
+        }
+      }
+    },
+    "Music" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音乐"
+          }
+        }
+      }
+    },
     "Music Source" : {
       "localizations" : {
         "ar" : {
@@ -15004,6 +15074,16 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "名称"
+          }
+        }
+      }
+    },
+    "Navigation configuration error" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导航配置错误"
           }
         }
       }
@@ -16185,6 +16265,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "官方状态栏适配器"
+          }
+        }
+      }
+    },
+    "OK" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确定"
           }
         }
       }
@@ -21280,6 +21370,16 @@
         }
       }
     },
+    "Show this page in the notch" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在灵动岛中显示此页面"
+          }
+        }
+      }
+    },
     "Shuffle" : {
       "localizations" : {
         "zh-Hans" : {
@@ -22335,6 +22435,26 @@
         }
       }
     },
+    "The dragged navigation item could not be read." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取拖动的导航项。"
+          }
+        }
+      }
+    },
+    "The dragged navigation item is invalid." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动的导航项无效。"
+          }
+        }
+      }
+    },
     "The integration guide URL is invalid." : {
       "localizations" : {
         "zh-Hans" : {
@@ -22797,6 +22917,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "TOKEN 数 · %1$lld %2$@"
+          }
+        }
+      }
+    },
+    "Top navigation" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顶部导航"
           }
         }
       }
