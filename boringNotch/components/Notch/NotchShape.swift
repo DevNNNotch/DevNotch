@@ -200,6 +200,12 @@ private struct NotchSurfaceConfiguration: Equatable {
 }
 
 final class NotchSurfaceLayerView: NSView {
+    private enum AnimationKey {
+        static let path = "notchSurfacePath"
+        static let shadowPath = "notchSurfaceShadowPath"
+        static let shadowOpacity = "notchSurfaceShadowOpacity"
+    }
+
     private let surfaceLayer = CAShapeLayer()
     private var configuration: NotchSurfaceConfiguration?
 
@@ -230,6 +236,10 @@ final class NotchSurfaceLayerView: NSView {
         surfaceLayer.contentsScale = window?.backingScaleFactor ?? 2
 
         guard let configuration else { return }
+        // SwiftUI can lay out this host repeatedly while the notch is moving.
+        // Keep the active presentation path owned by Core Animation until the
+        // transition settles; writing the target path here would reset it.
+        guard surfaceLayer.animation(forKey: AnimationKey.path) == nil else { return }
         setModelPath(path(for: configuration.isOpen ? 1 : 0, configuration: configuration))
     }
 
@@ -250,7 +260,11 @@ final class NotchSurfaceLayerView: NSView {
 
         guard previousConfiguration.isOpen != newConfiguration.isOpen else {
             surfaceLayer.shadowOpacity = newConfiguration.shadowEnabled ? 0.7 : 0
-            if previousConfiguration != newConfiguration {
+            // A layout/configuration refresh is expected during a transition.
+            // Do not replace the model path while the presentation path is
+            // still animating, otherwise the shell visibly stalls or jumps.
+            if previousConfiguration != newConfiguration,
+               surfaceLayer.animation(forKey: AnimationKey.path) == nil {
                 setModelPath(path(for: newConfiguration.isOpen ? 1 : 0, configuration: newConfiguration))
             }
             return
@@ -270,6 +284,10 @@ final class NotchSurfaceLayerView: NSView {
         to target: CGFloat,
         configuration: NotchSurfaceConfiguration
     ) {
+        surfaceLayer.removeAnimation(forKey: AnimationKey.path)
+        surfaceLayer.removeAnimation(forKey: AnimationKey.shadowPath)
+        surfaceLayer.removeAnimation(forKey: AnimationKey.shadowOpacity)
+
         let response: TimeInterval = target == 1 ? 0.42 : 0.45
         let dampingFraction: CGFloat = target == 1 ? 0.8 : 1
         // Keep sampling after the response period so the spring visibly settles.
@@ -303,7 +321,7 @@ final class NotchSurfaceLayerView: NSView {
 
         let targetPath = path(for: target, configuration: configuration)
         setModelPath(targetPath)
-        surfaceLayer.add(animation, forKey: "notchSurfacePath")
+        surfaceLayer.add(animation, forKey: AnimationKey.path)
 
         let shadowAnimation = CAKeyframeAnimation(keyPath: "shadowPath")
         shadowAnimation.values = paths
@@ -311,7 +329,7 @@ final class NotchSurfaceLayerView: NSView {
         shadowAnimation.duration = settlingDuration
         shadowAnimation.calculationMode = .linear
         shadowAnimation.isRemovedOnCompletion = true
-        surfaceLayer.add(shadowAnimation, forKey: "notchSurfaceShadowPath")
+        surfaceLayer.add(shadowAnimation, forKey: AnimationKey.shadowPath)
 
         let shadowOpacity = configuration.shadowEnabled ? Float(0.7) : 0
         let currentShadowOpacity = (surfaceLayer.presentation() as? CAShapeLayer)?.shadowOpacity
@@ -324,7 +342,7 @@ final class NotchSurfaceLayerView: NSView {
         opacityAnimation.duration = settlingDuration
         opacityAnimation.timingFunction = CAMediaTimingFunction(name: .linear)
         opacityAnimation.isRemovedOnCompletion = true
-        surfaceLayer.add(opacityAnimation, forKey: "notchSurfaceShadowOpacity")
+        surfaceLayer.add(opacityAnimation, forKey: AnimationKey.shadowOpacity)
     }
 
     private func currentProgress(configuration: NotchSurfaceConfiguration) -> CGFloat {
