@@ -240,20 +240,23 @@ final class NotchSurfaceLayerView: NSView {
     fileprivate func update(configuration newConfiguration: NotchSurfaceConfiguration) {
         let previousConfiguration = configuration
         configuration = newConfiguration
-        surfaceLayer.shadowOpacity = newConfiguration.shadowEnabled ? 0.7 : 0
 
         guard bounds.width > 0, bounds.height > 0 else { return }
         guard let previousConfiguration else {
+            surfaceLayer.shadowOpacity = newConfiguration.shadowEnabled ? 0.7 : 0
             setModelPath(path(for: newConfiguration.isOpen ? 1 : 0, configuration: newConfiguration))
             return
         }
 
         guard previousConfiguration.isOpen != newConfiguration.isOpen else {
+            surfaceLayer.shadowOpacity = newConfiguration.shadowEnabled ? 0.7 : 0
             if previousConfiguration != newConfiguration {
                 setModelPath(path(for: newConfiguration.isOpen ? 1 : 0, configuration: newConfiguration))
             }
             return
         }
+
+        surfaceLayer.shadowOpacity = previousConfiguration.shadowEnabled ? 0.7 : 0
 
         animate(
             from: currentProgress(configuration: newConfiguration),
@@ -302,15 +305,26 @@ final class NotchSurfaceLayerView: NSView {
         setModelPath(targetPath)
         surfaceLayer.add(animation, forKey: "notchSurfacePath")
 
-        if configuration.shadowEnabled {
-            let shadowAnimation = CAKeyframeAnimation(keyPath: "shadowPath")
-            shadowAnimation.values = paths
-            shadowAnimation.keyTimes = animation.keyTimes
-            shadowAnimation.duration = settlingDuration
-            shadowAnimation.calculationMode = .linear
-            shadowAnimation.isRemovedOnCompletion = true
-            surfaceLayer.add(shadowAnimation, forKey: "notchSurfaceShadowPath")
-        }
+        let shadowAnimation = CAKeyframeAnimation(keyPath: "shadowPath")
+        shadowAnimation.values = paths
+        shadowAnimation.keyTimes = animation.keyTimes
+        shadowAnimation.duration = settlingDuration
+        shadowAnimation.calculationMode = .linear
+        shadowAnimation.isRemovedOnCompletion = true
+        surfaceLayer.add(shadowAnimation, forKey: "notchSurfaceShadowPath")
+
+        let shadowOpacity = configuration.shadowEnabled ? Float(0.7) : 0
+        let currentShadowOpacity = (surfaceLayer.presentation() as? CAShapeLayer)?.shadowOpacity
+            ?? surfaceLayer.shadowOpacity
+        surfaceLayer.shadowOpacity = shadowOpacity
+
+        let opacityAnimation = CABasicAnimation(keyPath: "shadowOpacity")
+        opacityAnimation.fromValue = currentShadowOpacity
+        opacityAnimation.toValue = shadowOpacity
+        opacityAnimation.duration = settlingDuration
+        opacityAnimation.timingFunction = CAMediaTimingFunction(name: .linear)
+        opacityAnimation.isRemovedOnCompletion = true
+        surfaceLayer.add(opacityAnimation, forKey: "notchSurfaceShadowOpacity")
     }
 
     private func currentProgress(configuration: NotchSurfaceConfiguration) -> CGFloat {
