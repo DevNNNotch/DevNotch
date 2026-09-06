@@ -1,7 +1,7 @@
 import SwiftUI
 
-struct CodexActivityGlow: View {
-    let shape: NotchShape
+struct CodexActivityGlow<ActivityShape: Shape>: View {
+    let shape: ActivityShape
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 

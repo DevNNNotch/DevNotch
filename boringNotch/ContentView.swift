@@ -27,6 +27,8 @@ struct ContentView: View {
     @State private var hoverTask: Task<Void, Never>?
     @State private var isHovering: Bool = false
     @State private var gestureProgress: CGFloat = .zero
+    @State private var isExpandedContentPresented = false
+    @State private var expandedContentTask: Task<Void, Never>?
     @State private var presentedCodexCompletion: CodexTaskCompletion?
     @State private var codexCompletionDismissTask: Task<Void, Never>?
 
@@ -43,7 +45,6 @@ struct ContentView: View {
     @Default(.showNotHumanFace) var showNotHumanFace
     @Default(.developerAnimationSpeed) private var developerAnimationSpeed
 
-    // Shared interactive spring for movement/resizing to avoid conflicting animations
     private let animationSpring = Animation.interactiveSpring(
         response: 0.38,
         dampingFraction: 0.8,
@@ -57,15 +58,6 @@ struct ContentView: View {
        ((vm.notchState == .open) && Defaults[.cornerRadiusScaling])
                 ? cornerRadiusInsets.opened.top
                 : cornerRadiusInsets.closed.top
-    }
-
-    private var currentNotchShape: NotchShape {
-        NotchShape(
-            topCornerRadius: topCornerRadius,
-            bottomCornerRadius: ((vm.notchState == .open) && Defaults[.cornerRadiusScaling])
-                ? cornerRadiusInsets.opened.bottom
-                : cornerRadiusInsets.closed.bottom
-        )
     }
 
     private var computedChinWidth: CGFloat {
@@ -90,6 +82,25 @@ struct ContentView: View {
         return chinWidth
     }
 
+    private func animatedSurfaceShape(progress: CGFloat) -> AnimatedNotchSurfaceShape {
+        AnimatedNotchSurfaceShape(
+            progress: progress,
+            closedSize: CGSize(
+                width: max(vm.closedNotchSize.width, computedChinWidth),
+                height: vm.effectiveClosedNotchHeight
+            ),
+            openSize: openNotchSize,
+            closedTopCornerRadius: cornerRadiusInsets.closed.top,
+            closedBottomCornerRadius: cornerRadiusInsets.closed.bottom,
+            openTopCornerRadius: Defaults[.cornerRadiusScaling]
+                ? cornerRadiusInsets.opened.top
+                : cornerRadiusInsets.closed.top,
+            openBottomCornerRadius: Defaults[.cornerRadiusScaling]
+                ? cornerRadiusInsets.opened.bottom
+                : cornerRadiusInsets.closed.bottom
+        )
+    }
+
     var body: some View {
         // Calculate scale based on gesture progress only
         let gestureScale: CGFloat = {
@@ -98,20 +109,57 @@ struct ContentView: View {
             return max(0.6, scaleFactor)
         }()
         
+        let surfaceShape = animatedSurfaceShape(
+            progress: vm.notchState == .open ? 1 : 0
+        )
+
         ZStack(alignment: .top) {
+            AnimatedNotchSurfaceView(
+                isOpen: vm.notchState == .open,
+                closedSize: CGSize(
+                    width: max(vm.closedNotchSize.width, computedChinWidth),
+                    height: vm.effectiveClosedNotchHeight
+                ),
+                openSize: openNotchSize,
+                closedTopCornerRadius: cornerRadiusInsets.closed.top,
+                closedBottomCornerRadius: cornerRadiusInsets.closed.bottom,
+                openTopCornerRadius: Defaults[.cornerRadiusScaling]
+                    ? cornerRadiusInsets.opened.top
+                    : cornerRadiusInsets.closed.top,
+                openBottomCornerRadius: Defaults[.cornerRadiusScaling]
+                    ? cornerRadiusInsets.opened.bottom
+                    : cornerRadiusInsets.closed.bottom,
+                shadowEnabled: (vm.notchState == .open || isHovering)
+                    && Defaults[.enableShadow]
+            )
+            .frame(
+                width: openNotchSize.width,
+                height: openNotchSize.height
+            )
+            .id("notch-surface-layer")
+            .allowsHitTesting(false)
+
             VStack(spacing: 0) {
-                let mainLayout = NotchLayout()
+                let notchContent = NotchLayout()
                     .frame(alignment: .top)
                     .padding(
                         .horizontal,
                         vm.notchState == .open
                         ? Defaults[.cornerRadiusScaling]
-                        ? (cornerRadiusInsets.opened.top) : (cornerRadiusInsets.opened.bottom)
+                        ? cornerRadiusInsets.opened.top : cornerRadiusInsets.opened.bottom
                         : cornerRadiusInsets.closed.bottom
                     )
                     .padding([.horizontal, .bottom], vm.notchState == .open ? 12 : 0)
-                    .background(.black)
-                    .clipShape(currentNotchShape)
+                    .frame(
+                        width: openNotchSize.width,
+                        height: openNotchSize.height,
+                        alignment: .top
+                    )
+                    .mask {
+                        surfaceCanvas(shape: surfaceShape, color: .white)
+                    }
+
+                let mainLayout = notchContent
                     .overlay(alignment: .top) {
                         Rectangle()
                             .fill(.black)
@@ -120,14 +168,10 @@ struct ContentView: View {
                     }
                     .overlay {
                         if developerWorkspace.isCodexWorking {
-                            CodexActivityGlow(shape: currentNotchShape)
+                            CodexActivityGlow(shape: surfaceShape)
                                 .transition(.opacity)
                         }
                     }
-                    .shadow(
-                        color: ((vm.notchState == .open || isHovering) && Defaults[.enableShadow])
-                            ? .black.opacity(0.7) : .clear, radius: Defaults[.cornerRadiusScaling] ? 6 : 4
-                    )
                     .padding(
                         .bottom,
                         vm.effectiveClosedNotchHeight == 0 ? 10 : 0
@@ -135,15 +179,8 @@ struct ContentView: View {
                 
                 mainLayout
                     .frame(height: vm.notchState == .open ? vm.notchSize.height : nil)
-                    .conditionalModifier(true) { view in
-                        let openAnimation = Animation.spring(response: 0.42, dampingFraction: 0.8, blendDuration: 0)
-                        let closeAnimation = Animation.spring(response: 0.45, dampingFraction: 1.0, blendDuration: 0)
-                        
-                        return view
-                            .animation(vm.notchState == .open ? openAnimation : closeAnimation, value: vm.notchState)
-                            .animation(.smooth, value: gestureProgress)
-                    }
-                    .contentShape(Rectangle())
+                    .animation(.smooth, value: gestureProgress)
+                    .contentShape(surfaceShape)
                     .onHover { hovering in
                         handleHover(hovering)
                     }
@@ -229,7 +266,6 @@ struct ContentView: View {
         }
         .padding(.bottom, 8)
         .frame(maxWidth: windowSize.width, maxHeight: windowSize.height, alignment: .top)
-        .compositingGroup()
         .scaleEffect(
             x: gestureScale,
             y: gestureScale,
@@ -238,6 +274,28 @@ struct ContentView: View {
         .animation(.smooth, value: gestureProgress)
         .preferredColorScheme(.dark)
         .environmentObject(vm)
+        .onAppear {
+            isExpandedContentPresented = vm.notchState == .open
+        }
+        .onChange(of: vm.notchState) { _, state in
+            expandedContentTask?.cancel()
+
+            if state == .closed {
+                withAnimation(.smooth(duration: 0.35)) {
+                    isExpandedContentPresented = false
+                }
+            }
+
+            if state == .open {
+                expandedContentTask = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(65))
+                    guard !Task.isCancelled, vm.notchState == .open else { return }
+                    withAnimation(.smooth(duration: 0.35)) {
+                        isExpandedContentPresented = true
+                    }
+                }
+            }
+        }
         .onChange(of: developerWorkspace.latestCodexCompletion?.id) { _, completionID in
             guard completionID != nil,
                   let completion = developerWorkspace.latestCodexCompletion
@@ -245,6 +303,7 @@ struct ContentView: View {
             presentCodexCompletion(completion)
         }
         .onDisappear {
+            expandedContentTask?.cancel()
             codexCompletionDismissTask?.cancel()
         }
     }
@@ -290,7 +349,7 @@ struct ContentView: View {
                             }
                             .frame(width: 76, alignment: .trailing)
                         }
-                        .frame(height: vm.effectiveClosedNotchHeight + (isHovering ? 8 : 0), alignment: .center)
+                        .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
                       } else if coordinator.sneakPeek.show && Defaults[.inlineHUD] && (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && vm.notchState == .closed {
                           InlineHUD(type: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
                               .transition(.opacity)
@@ -299,7 +358,7 @@ struct ContentView: View {
                               .frame(alignment: .center)
                       } else if !coordinator.expandingView.show && vm.notchState == .closed && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace] && !vm.hideOnClosed  {
                           BoringFaceAnimation()
-                       } else if vm.notchState == .open {
+                       } else if isExpandedContentPresented {
                            BoringHeader()
                                .frame(height: max(24, vm.effectiveClosedNotchHeight))
                                .opacity(gestureProgress != 0 ? 1.0 - min(abs(gestureProgress) * 0.1, 0.3) : 1.0)
@@ -349,7 +408,7 @@ struct ContentView: View {
                       .fixedSize()
               }
               .zIndex(2)
-            if vm.notchState == .open {
+            if isExpandedContentPresented {
                 VStack {
                     if let completion = presentedCodexCompletion {
                         CodexCompletionView(completion: completion) {
@@ -381,7 +440,7 @@ struct ContentView: View {
                     .animation(.smooth(duration: 0.35))
                 )
                 .zIndex(1)
-                .allowsHitTesting(vm.notchState == .open)
+                .allowsHitTesting(isExpandedContentPresented)
                 .opacity(gestureProgress != 0 ? 1.0 - min(abs(gestureProgress) * 0.1, 0.3) : 1.0)
             }
         }
@@ -404,7 +463,7 @@ struct ContentView: View {
                 MinimalFaceFeatures()
             }
         }.frame(
-            height: vm.effectiveClosedNotchHeight + (isHovering ? 8 : 0),
+            height: vm.effectiveClosedNotchHeight,
             alignment: .center
         )
     }
@@ -469,7 +528,7 @@ struct ContentView: View {
                         && Defaults[.sneakPeekStyles] == .inline)
                         ? 380
                         : vm.closedNotchSize.width
-                            + (isHovering ? 8 : -cornerRadiusInsets.closed.top)
+                            - cornerRadiusInsets.closed.top
                 )
 
             HStack {
@@ -494,18 +553,18 @@ struct ContentView: View {
             .frame(
                 width: max(
                     0,
-                    vm.effectiveClosedNotchHeight - (isHovering ? 0 : 12)
+                    vm.effectiveClosedNotchHeight - 12
                         + gestureProgress / 2
                 ),
                 height: max(
                     0,
-                    vm.effectiveClosedNotchHeight - (isHovering ? 0 : 12)
+                    vm.effectiveClosedNotchHeight - 12
                 ),
                 alignment: .center
             )
         }
         .frame(
-            height: vm.effectiveClosedNotchHeight + (isHovering ? 8 : 0),
+            height: vm.effectiveClosedNotchHeight,
             alignment: .center
         )
     }
@@ -516,11 +575,30 @@ struct ContentView: View {
         }
     }
 
+    private func surfaceCanvas(
+        shape: AnimatedNotchSurfaceShape,
+        color: Color
+    ) -> some View {
+        Canvas { context, size in
+            context.fill(
+                shape.path(in: CGRect(origin: .zero, size: size)),
+                with: .color(color)
+            )
+        }
+        .id(shape.progress)
+        .transaction { transaction in
+            transaction.animation = nil
+            transaction.disablesAnimations = true
+        }
+    }
+
     private func presentCodexCompletion(_ completion: CodexTaskCompletion) {
         codexCompletionDismissTask?.cancel()
         withAnimation(animationSpring) {
             presentedCodexCompletion = completion
-            vm.open()
+        }
+        if vm.notchState == .closed {
+            doOpen()
         }
 
         codexCompletionDismissTask = Task {
@@ -586,10 +664,15 @@ struct ContentView: View {
                 guard !Task.isCancelled else { return }
                 
                 await MainActor.run {
+                    guard !self.vm.isMouseHovering() else {
+                        self.isHovering = true
+                        return
+                    }
+
                     withAnimation(animationSpring) {
                         self.isHovering = false
                     }
-                    
+
                     if self.vm.notchState == .open && !self.vm.isBatteryPopoverActive && !SharingStateManager.shared.preventNotchClose {
                         self.vm.close()
                     }
@@ -640,7 +723,7 @@ struct ContentView: View {
             withAnimation(animationSpring) {
                 isHovering = false
             }
-            if !SharingStateManager.shared.preventNotchClose { 
+            if !SharingStateManager.shared.preventNotchClose {
                 gestureProgress = .zero
                 vm.close()
             }
