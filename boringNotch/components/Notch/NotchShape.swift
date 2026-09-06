@@ -199,6 +199,18 @@ private struct NotchSurfaceConfiguration: Equatable {
     let shadowEnabled: Bool
 }
 
+private final class NotchTransitionAnimationDelegate: NSObject, CAAnimationDelegate {
+    let onStop: (Bool) -> Void
+
+    init(onStop: @escaping (Bool) -> Void) {
+        self.onStop = onStop
+    }
+
+    func animationDidStop(_ animation: CAAnimation, finished: Bool) {
+        onStop(finished)
+    }
+}
+
 final class NotchSurfaceLayerView: NSView {
     private enum AnimationKey {
         static let path = "notchSurfacePath"
@@ -208,6 +220,7 @@ final class NotchSurfaceLayerView: NSView {
 
     private let surfaceLayer = CAShapeLayer()
     private var configuration: NotchSurfaceConfiguration?
+    private var transitionDelegate: NotchTransitionAnimationDelegate?
 
     override var isFlipped: Bool { true }
 
@@ -259,12 +272,14 @@ final class NotchSurfaceLayerView: NSView {
         }
 
         guard previousConfiguration.isOpen != newConfiguration.isOpen else {
-            surfaceLayer.shadowOpacity = newConfiguration.shadowEnabled ? 0.7 : 0
+            let transitionRunning = surfaceLayer.animation(forKey: AnimationKey.path) != nil
+            if !transitionRunning {
+                surfaceLayer.shadowOpacity = newConfiguration.shadowEnabled ? 0.7 : 0
+            }
             // A layout/configuration refresh is expected during a transition.
             // Do not replace the model path while the presentation path is
             // still animating, otherwise the shell visibly stalls or jumps.
-            if previousConfiguration != newConfiguration,
-               surfaceLayer.animation(forKey: AnimationKey.path) == nil {
+            if previousConfiguration != newConfiguration, !transitionRunning {
                 setModelPath(path(for: newConfiguration.isOpen ? 1 : 0, configuration: newConfiguration))
             }
             return
@@ -284,9 +299,13 @@ final class NotchSurfaceLayerView: NSView {
         to target: CGFloat,
         configuration: NotchSurfaceConfiguration
     ) {
+        let currentShadowOpacity = (surfaceLayer.presentation() as? CAShapeLayer)?.shadowOpacity
+            ?? surfaceLayer.shadowOpacity
+
         surfaceLayer.removeAnimation(forKey: AnimationKey.path)
         surfaceLayer.removeAnimation(forKey: AnimationKey.shadowPath)
         surfaceLayer.removeAnimation(forKey: AnimationKey.shadowOpacity)
+        transitionDelegate = nil
 
         let response: TimeInterval = target == 1 ? 0.42 : 0.45
         let dampingFraction: CGFloat = target == 1 ? 0.8 : 1
@@ -319,8 +338,24 @@ final class NotchSurfaceLayerView: NSView {
         animation.calculationMode = .linear
         animation.isRemovedOnCompletion = true
 
+        let startPath = path(for: start, configuration: configuration)
         let targetPath = path(for: target, configuration: configuration)
-        setModelPath(targetPath)
+        let shadowOpacity = configuration.shadowEnabled ? Float(0.7) : 0
+
+        transitionDelegate = NotchTransitionAnimationDelegate { [weak self] finished in
+            guard finished, let self else { return }
+            self.setModelPath(targetPath)
+            self.surfaceLayer.shadowOpacity = shadowOpacity
+            self.transitionDelegate = nil
+        }
+        animation.delegate = transitionDelegate
+
+        // The SwiftUI mask switches to the destination size immediately, so
+        // keep the fill model at the destination to cover that content while
+        // the presentation path animates. The shadow must remain at the
+        // visible start path until its own animation begins, otherwise a
+        // one-frame gray halo appears in the not-yet-expanded area.
+        setModelPath(targetPath, shadowPath: startPath)
         surfaceLayer.add(animation, forKey: AnimationKey.path)
 
         let shadowAnimation = CAKeyframeAnimation(keyPath: "shadowPath")
@@ -331,10 +366,7 @@ final class NotchSurfaceLayerView: NSView {
         shadowAnimation.isRemovedOnCompletion = true
         surfaceLayer.add(shadowAnimation, forKey: AnimationKey.shadowPath)
 
-        let shadowOpacity = configuration.shadowEnabled ? Float(0.7) : 0
-        let currentShadowOpacity = (surfaceLayer.presentation() as? CAShapeLayer)?.shadowOpacity
-            ?? surfaceLayer.shadowOpacity
-        surfaceLayer.shadowOpacity = shadowOpacity
+        surfaceLayer.shadowOpacity = currentShadowOpacity
 
         let opacityAnimation = CABasicAnimation(keyPath: "shadowOpacity")
         opacityAnimation.fromValue = currentShadowOpacity
@@ -358,11 +390,11 @@ final class NotchSurfaceLayerView: NSView {
         return min(1, max(0, (width - configuration.closedSize.width) / distance))
     }
 
-    private func setModelPath(_ path: CGPath) {
+    private func setModelPath(_ path: CGPath, shadowPath: CGPath? = nil) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         surfaceLayer.path = path
-        surfaceLayer.shadowPath = path
+        surfaceLayer.shadowPath = shadowPath ?? path
         CATransaction.commit()
     }
 
